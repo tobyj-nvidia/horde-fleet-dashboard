@@ -9,6 +9,10 @@ from fastapi.templating import Jinja2Templates
 from dashboard.db import close_pool, get_pool, ping_db
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+from dashboard.routes.api import api_router
+>>>>>>> origin/fleet/989feb15-d3c6-4e0d-aa44-530a6491144f
 from dashboard.routes.fragments import router as fragments_router
 =======
 from dashboard.routes.api import router as api_router
@@ -32,6 +36,7 @@ app.include_router(fragments_router)
 
 app.include_router(api_router)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.include_router(api_router, prefix="/api")
 app.include_router(fragments_router)
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 

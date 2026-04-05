@@ -1,24 +1,35 @@
 """JSON API routes for the Horde Fleet Dashboard."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from dashboard.db import get_db
-from dashboard.queries import get_task, retry_task
+from dashboard.queries import get_task, get_tasks
 
-router = APIRouter(prefix="/api")
+VALID_STATUSES = {"pending", "claimed", "running", "completed", "failed", "dead-letter"}
+
+api_router = APIRouter()
 
 
-@router.post("/tasks/{task_id}/retry")
-async def retry_task_endpoint(task_id: str, conn=Depends(get_db)):
-    task_data = await get_task(conn, task_id)
-    if task_data is None:
-        raise HTTPException(status_code=404, detail="not found")
+@api_router.get("/tasks")
+async def list_tasks(
+    status: str | None = Query(default=None),
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    conn=Depends(get_db),
+):
+    if status is not None and status not in VALID_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Invalid status: {status!r}")
+    if limit > 200:
+        limit = 200
+    tasks, total = await get_tasks(conn, status=status, limit=limit, offset=offset)
+    return {"tasks": tasks, "total": total}
 
-    if task_data["task"]["status"] != "dead-letter":
-        raise HTTPException(
-            status_code=409,
-            detail=f"task status is '{task_data['task']['status']}', not 'dead-letter'",
-        )
 
-    await retry_task(conn, task_id)
-    return {"task_id": task_id, "status": "pending"}
+@api_router.get("/tasks/{task_id}")
+async def get_task_detail(task_id: str, conn=Depends(get_db)):
+    data = await get_task(conn, task_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return data
