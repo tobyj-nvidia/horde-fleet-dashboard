@@ -11,6 +11,7 @@ from dashboard.db import close_pool, get_pool, ping_db
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 from dashboard.routes.api import api_router
 >>>>>>> origin/fleet/989feb15-d3c6-4e0d-aa44-530a6491144f
@@ -24,6 +25,9 @@ from dashboard.routes.fragments import router as fragments_router
 =======
 from dashboard.routes.api import router as api_router
 >>>>>>> origin/fleet/d18d0276-19f0-4a91-b0a2-c6b2515a0126
+=======
+from dashboard.routes.api import router as api_router
+>>>>>>> origin/fleet/d5053fae-9e1d-4e9e-9813-e3594def6f2e
 
 BASE_DIR = Path(__file__).parent
 
@@ -40,9 +44,12 @@ app.include_router(fragments_router)
 
 app.include_router(api_router)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> origin/fleet/d18d0276-19f0-4a91-b0a2-c6b2515a0126
+=======
+>>>>>>> origin/fleet/d5053fae-9e1d-4e9e-9813-e3594def6f2e
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(api_router, prefix="/api")
 app.include_router(fragments_router)
