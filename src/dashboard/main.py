@@ -8,10 +8,14 @@ from fastapi.templating import Jinja2Templates
 
 from dashboard.db import close_pool, get_pool, ping_db
 <<<<<<< HEAD
+<<<<<<< HEAD
 from dashboard.routes.fragments import router as fragments_router
 =======
 from dashboard.routes.api import router as api_router
 >>>>>>> origin/fleet/65716921-940c-419f-8319-359b71d39e7b
+=======
+from dashboard.routes.fragments import router as fragments_router
+>>>>>>> origin/fleet/911b3304-1490-4058-bf85-bf9239cd6182
 
 BASE_DIR = Path(__file__).parent
 

@@ -1,0 +1,26 @@
+<div class="active-tasks" hx-get="/fragments/active-tasks" hx-trigger="every 5s" hx-swap="outerHTML">
+  {% if tasks %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Type</th>
+        <th>Node</th>
+        <th>Elapsed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td class="mono">{{ task.task_id[:8] }}</td>
+        <td>{{ task.task_type }}</td>
+        <td>{{ task.claimed_by or "—" }}</td>
+        <td>{{ task._elapsed }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No active tasks</p>
+  {% endif %}
+</div>

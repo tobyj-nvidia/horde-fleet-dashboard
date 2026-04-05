@@ -1,0 +1,9 @@
+<div class="queue-counts" hx-get="/fragments/queue-counts" hx-trigger="every 5s" hx-swap="outerHTML">
+  {% set statuses = ["pending", "claimed", "running", "completed", "failed", "dead-letter"] %}
+  {% for status in statuses %}
+  <div class="status-box status-{{ status | replace('-', '_') }}">
+    <span class="status-label">{{ status }}</span>
+    <span class="status-count">{{ counts.get(status, 0) }}</span>
+  </div>
+  {% endfor %}
+</div>
