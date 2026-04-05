@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Horde Fleet Dashboard", lifespan=lifespan)
+app.include_router(fragments_router)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(fragments_router)

@@ -1,0 +1,27 @@
+<div hx-get="/fragments/tokens" hx-trigger="every 60s" hx-swap="outerHTML" class="fragment-tokens">
+{% if not rows %}
+  <p class="no-data">No data for this window</p>
+{% else %}
+  <table class="metric-table">
+    <thead>
+      <tr><th>Provider</th><th>Model</th><th>Tokens</th><th>USD</th></tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.provider }}</td>
+        <td>{{ r.model }}</td>
+        <td>{{ r.total_tokens }}</td>
+        <td>${{ "%.4f"|format(r.total_usd or 0) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3"><strong>Total</strong></td>
+        <td><strong>${{ "%.4f"|format(total_usd) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+{% endif %}
+</div>

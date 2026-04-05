@@ -1,0 +1,22 @@
+<div hx-get="/fragments/failures" hx-trigger="every 60s" hx-swap="outerHTML" class="fragment-failures">
+{% if not buckets %}
+  <p class="no-data">No data for this window</p>
+{% else %}
+  <div class="sparkline" title="7-day failure rate">{{ spark }}</div>
+  <table class="metric-table">
+    <thead>
+      <tr><th>Date</th><th>Total</th><th>Failures</th><th>Rate</th></tr>
+    </thead>
+    <tbody>
+    {% for b in buckets %}
+      <tr>
+        <td>{{ b.date }}</td>
+        <td>{{ b.total }}</td>
+        <td class="{% if b.failures > 0 %}failure{% endif %}">{{ b.failures }}</td>
+        <td class="{% if (b.failure_pct or 0) > 10 %}failure{% endif %}">{{ b.failure_pct or 0 }}%</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</div>

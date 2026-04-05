@@ -1,0 +1,14 @@
+<div hx-get="/fragments/duration" hx-trigger="every 60s" hx-swap="outerHTML" class="fragment-duration">
+{% if no_data %}
+  <p class="no-data">No data for this window</p>
+{% else %}
+  <table class="metric-table">
+    <tbody>
+      <tr><th>P50</th><td>{{ p50 }}</td></tr>
+      <tr><th>P95</th><td>{{ p95 }}</td></tr>
+      <tr><th>P99</th><td>{{ p99 }}</td></tr>
+      <tr><th>Avg</th><td>{{ avg }}</td></tr>
+    </tbody>
+  </table>
+{% endif %}
+</div>

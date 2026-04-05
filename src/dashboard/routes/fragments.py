@@ -1,4 +1,4 @@
-"""HTMX fragment routes."""
+"""HTMX fragment routes for historical metric panels."""
 
 from pathlib import Path
 
@@ -7,47 +7,70 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from dashboard.db import get_db
-from dashboard.queries import get_dead_letter, get_nodes
-
-BASE_DIR = Path(__file__).parent.parent
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
+from dashboard.queries import (
+    get_duration_percentiles,
+    get_failure_rate,
+    get_throughput,
+    get_token_spend,
+)
+from dashboard.sparkline import sparkline
 
 router = APIRouter()
 
+_TEMPLATES = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
-@router.get("/fragments/nodes", response_class=HTMLResponse)
-async def fragment_nodes(request: Request, conn=Depends(get_db)):
-    nodes = await get_nodes(conn)
-    return templates.TemplateResponse(
-        "fragments/nodes.html", {"request": request, "nodes": nodes}
+
+def _fmt_duration(seconds) -> str:
+    """Format a duration in seconds as 'Xm Ys'."""
+    if seconds is None:
+        return "—"
+    secs = int(round(float(seconds)))
+    m, s = divmod(secs, 60)
+    return f"{m}m {s}s"
+
+
+@router.get("/fragments/throughput", response_class=HTMLResponse)
+async def fragment_throughput(request: Request, conn=Depends(get_db)):
+    buckets = await get_throughput(conn, window_days=7)
+    spark = sparkline([b["total"] for b in buckets]) if buckets else ""
+    return _TEMPLATES.TemplateResponse(
+        "fragments/throughput.html",
+        {"request": request, "buckets": buckets, "spark": spark},
     )
 
 
-@router.get("/fragments/dead-letter", response_class=HTMLResponse)
-async def fragment_dead_letter(request: Request, conn=Depends(get_db)):
-    rows = await get_dead_letter(conn, limit=20)
-    tasks = []
-    for row in rows:
-        # Build prompt snippet from payload JSON if available, else use error_msg
-        prompt_snippet = ""
-        if row.get("error_msg"):
-            prompt_snippet = row["error_msg"][:80]
+@router.get("/fragments/tokens", response_class=HTMLResponse)
+async def fragment_tokens(request: Request, conn=Depends(get_db)):
+    rows = await get_token_spend(conn, window_days=7)
+    total_usd = sum(float(r["total_usd"] or 0) for r in rows)
+    return _TEMPLATES.TemplateResponse(
+        "fragments/tokens.html",
+        {"request": request, "rows": rows, "total_usd": total_usd},
+    )
 
-        # Compute seconds since failure (use completed_at or updated_at)
-        failure_age_sec = None
-        ts = row.get("completed_at") or row.get("updated_at")
-        if ts is not None:
-            import datetime
-            now = datetime.datetime.utcnow()
-            if hasattr(ts, "timetuple"):
-                delta = now - ts
-                failure_age_sec = int(delta.total_seconds())
 
-        tasks.append({
-            **row,
-            "prompt_snippet": prompt_snippet,
-            "failure_age_sec": failure_age_sec,
-        })
-    return templates.TemplateResponse(
-        "fragments/dead_letter.html", {"request": request, "tasks": tasks}
+@router.get("/fragments/failures", response_class=HTMLResponse)
+async def fragment_failures(request: Request, conn=Depends(get_db)):
+    buckets = await get_failure_rate(conn, window_days=7)
+    spark = sparkline([int(b["failures"]) for b in buckets]) if buckets else ""
+    return _TEMPLATES.TemplateResponse(
+        "fragments/failures.html",
+        {"request": request, "buckets": buckets, "spark": spark},
+    )
+
+
+@router.get("/fragments/duration", response_class=HTMLResponse)
+async def fragment_duration(request: Request, conn=Depends(get_db)):
+    data = await get_duration_percentiles(conn, window_days=7)
+    no_data = data.get("p50_sec") is None and data.get("p95_sec") is None
+    return _TEMPLATES.TemplateResponse(
+        "fragments/duration.html",
+        {
+            "request": request,
+            "no_data": no_data,
+            "p50": _fmt_duration(data.get("p50_sec")),
+            "p95": _fmt_duration(data.get("p95_sec")),
+            "p99": _fmt_duration(data.get("p99_sec")),
+            "avg": _fmt_duration(data.get("avg_sec")),
+        },
     )
