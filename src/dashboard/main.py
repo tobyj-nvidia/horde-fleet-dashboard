@@ -21,9 +21,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Horde Fleet Dashboard", lifespan=lifespan)
-app.include_router(api_router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.include_router(api_router, prefix="/api")
 app.include_router(fragments_router)
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 

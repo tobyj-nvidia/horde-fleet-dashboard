@@ -21,8 +21,6 @@ async def list_tasks(
 ):
     if status is not None and status not in VALID_STATUSES:
         raise HTTPException(status_code=422, detail=f"Invalid status: {status!r}")
-    if limit > 200:
-        limit = 200
     tasks, total = await get_tasks(conn, status=status, limit=limit, offset=offset)
     return {"tasks": tasks, "total": total}
 
