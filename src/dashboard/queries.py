@@ -336,6 +336,28 @@ async def get_node_metrics_history(
     return [dict(row) for row in rows]
 
 
+async def get_node_utilization_history(conn) -> list[dict]:
+    """5-minute bucketed CPU/GPU utilization per node over 48 hours."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                node_id,
+                FROM_UNIXTIME(
+                    FLOOR(UNIX_TIMESTAMP(recorded_at) / 300) * 300
+                ) AS bucket,
+                AVG(cpu_pct) AS cpu_pct,
+                AVG(gpu_pct) AS gpu_pct
+            FROM node_metrics
+            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+            GROUP BY node_id, FLOOR(UNIX_TIMESTAMP(recorded_at) / 300)
+            ORDER BY node_id, bucket
+            """
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from dashboard.db import get_db
+from dashboard.charts import render_line_chart
 from dashboard.queries import (
     get_active_tasks,
     get_dead_letter,
@@ -14,6 +15,7 @@ from dashboard.queries import (
     get_failure_rate,
     get_node_metrics_history,
     get_node_metrics_latest,
+    get_node_utilization_history,
     get_nodes,
     get_queue_counts,
     get_throughput,
@@ -129,6 +131,46 @@ async def fragment_node_metrics(request: Request, conn=Depends(get_db)):
 
     return templates.TemplateResponse(
         "fragments/node_metrics.html",
+        {"request": request, "nodes": nodes},
+    )
+
+
+@router.get("/fragments/node-utilization-chart", response_class=HTMLResponse)
+async def fragment_node_utilization_chart(request: Request, conn=Depends(get_db)):
+    rows = await get_node_utilization_history(conn)
+
+    history_by_node: dict[str, list] = {}
+    for row in rows:
+        nid = row["node_id"]
+        if nid not in history_by_node:
+            history_by_node[nid] = []
+        history_by_node[nid].append(row)
+
+    nodes = []
+    for node_id, hist in history_by_node.items():
+        cpu_series = {
+            "label": "CPU",
+            "color": "#4fc3f7",
+            "data": [{"x": r["bucket"], "y": float(r["cpu_pct"] or 0)} for r in hist],
+        }
+        gpu_series = {
+            "label": "GPU",
+            "color": "#66bb6a",
+            "data": [{"x": r["bucket"], "y": float(r["gpu_pct"] or 0)} for r in hist],
+        }
+        chart_svg = render_line_chart(
+            series=[cpu_series, gpu_series],
+            width=800,
+            height=200,
+            y_label="%",
+            y_min=0,
+            y_max=100,
+        )
+        nodes.append({"node_id": node_id, "chart_svg": chart_svg})
+
+    nodes.sort(key=lambda n: n["node_id"])
+    return templates.TemplateResponse(
+        "fragments/node_utilization_chart.html",
         {"request": request, "nodes": nodes},
     )
 

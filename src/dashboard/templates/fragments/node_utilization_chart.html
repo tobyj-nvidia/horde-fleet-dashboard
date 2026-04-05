@@ -1,0 +1,13 @@
+<div hx-get="/fragments/node-utilization-chart" hx-trigger="every 60s" hx-swap="outerHTML">
+<h3 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:#a0a0c0;margin-bottom:0.75rem;">Node Utilization (48h)</h3>
+{% if nodes %}
+{% for node in nodes %}
+<div class="chart-card">
+    <h4 class="mono" style="font-size:0.8rem;color:#c0c0e0;margin-bottom:0.25rem;">{{ node.node_id }}</h4>
+    {{ node.chart_svg | safe }}
+</div>
+{% endfor %}
+{% else %}
+<p class="empty-state">No node utilization data available.</p>
+{% endif %}
+</div>
