@@ -17,8 +17,8 @@ async def get_active_tasks(conn) -> list[dict]:
         await cur.execute(
             """
             SELECT
-                t.task_id,
-                t.task_type,
+                t.id,
+                t.type,
                 t.status,
                 t.claimed_by,
                 t.started_at,
@@ -40,7 +40,7 @@ async def get_nodes(conn) -> list[dict]:
         await cur.execute(
             """
             SELECT
-                node_id,
+                id AS node_id,
                 status,
                 capabilities,
                 active_tasks,
@@ -48,7 +48,7 @@ async def get_nodes(conn) -> list[dict]:
                 last_heartbeat,
                 TIMESTAMPDIFF(SECOND, last_heartbeat, NOW()) AS heartbeat_age_sec
             FROM nodes
-            ORDER BY node_id ASC
+            ORDER BY id ASC
             """
         )
         rows = await cur.fetchall()
@@ -66,18 +66,18 @@ async def get_dead_letter(conn, limit: int = 20) -> list[dict]:
         await cur.execute(
             """
             SELECT
-                t.task_id,
-                t.task_type,
+                t.id,
+                t.type,
                 t.status,
                 t.retry_count,
-                t.created_at,
-                t.updated_at,
+                t.submitted_at,
+                t.submitted_at,
                 tr.error_msg,
                 tr.completed_at
             FROM tasks t
-            LEFT JOIN task_results tr ON t.task_id = tr.task_id
+            LEFT JOIN task_results tr ON t.id = tr.task_id
             WHERE t.status = %s
-            ORDER BY t.updated_at DESC
+            ORDER BY t.submitted_at DESC
             LIMIT %s
             """,
             ("dead-letter", limit),
@@ -94,14 +94,14 @@ async def get_throughput(conn, window_days: int = 7) -> list[dict]:
             SELECT
                 DATE(completed_at) AS date,
                 COUNT(*) AS total,
-                SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS success,
-                SUM(CASE WHEN status != %s THEN 1 ELSE 0 END) AS failure
+                SUM(CASE WHEN outcome = %s THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) AS failure
             FROM task_results
             WHERE completed_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             GROUP BY DATE(completed_at)
             ORDER BY date ASC
             """,
-            ("completed", "completed", window_days),
+            ("success", "success", window_days),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]
@@ -147,9 +147,9 @@ async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
             SELECT
                 DATE(completed_at) AS date,
                 COUNT(*) AS total,
-                SUM(CASE WHEN status != %s THEN 1 ELSE 0 END) AS failures,
+                SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) AS failures,
                 ROUND(
-                    100.0 * SUM(CASE WHEN status != %s THEN 1 ELSE 0 END) / COUNT(*),
+                    100.0 * SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) / COUNT(*),
                     2
                 ) AS failure_pct
             FROM task_results
@@ -157,7 +157,7 @@ async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
             GROUP BY DATE(completed_at)
             ORDER BY date ASC
             """,
-            ("completed", "completed", window_days),
+            ("success", "success", window_days),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]
@@ -174,7 +174,7 @@ async def get_token_spend(conn, window_days: int = 7) -> list[dict]:
                 SUM(input_tokens + output_tokens) AS total_tokens,
                 SUM(cost_usd) AS total_usd
             FROM task_telemetry
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            WHERE submitted_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             GROUP BY provider, model
             ORDER BY total_usd DESC
             """,
@@ -242,7 +242,7 @@ async def get_tasks(
                 """
                 SELECT * FROM tasks
                 WHERE status = %s
-                ORDER BY created_at DESC
+                ORDER BY submitted_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 (status, limit, offset),
@@ -251,7 +251,7 @@ async def get_tasks(
             await cur.execute(
                 """
                 SELECT * FROM tasks
-                ORDER BY created_at DESC
+                ORDER BY submitted_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 (limit, offset),
