@@ -1,35 +1,34 @@
 """JSON API routes for the Horde Fleet Dashboard."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends
 
 from dashboard.db import get_db
-from dashboard.queries import get_task, get_tasks
+from dashboard.queries import get_nodes, get_queue_counts
 
-VALID_STATUSES = {"pending", "claimed", "running", "completed", "failed", "dead-letter"}
+router = APIRouter(prefix="/api")
 
-api_router = APIRouter()
-
-
-@api_router.get("/tasks")
-async def list_tasks(
-    status: str | None = Query(default=None),
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    conn=Depends(get_db),
-):
-    if status is not None and status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail=f"Invalid status: {status!r}")
-    if limit > 200:
-        limit = 200
-    tasks, total = await get_tasks(conn, status=status, limit=limit, offset=offset)
-    return {"tasks": tasks, "total": total}
+ALL_STATUSES = ("pending", "claimed", "running", "completed", "failed", "dead-letter")
 
 
-@api_router.get("/tasks/{task_id}")
-async def get_task_detail(task_id: str, conn=Depends(get_db)):
-    data = await get_task(conn, task_id)
-    if data is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return data
+@router.get("/nodes")
+async def nodes(conn=Depends(get_db)):
+    node_list = await get_nodes(conn)
+    return {"nodes": node_list}
+
+
+@router.get("/metrics/summary")
+async def metrics_summary(conn=Depends(get_db)):
+    queue_counts = await get_queue_counts(conn)
+    node_list = await get_nodes(conn)
+
+    # Ensure all status keys are present
+    counts = {s: queue_counts.get(s, 0) for s in ALL_STATUSES}
+
+    active_tasks = counts.get("claimed", 0) + counts.get("running", 0)
+    nodes_online = sum(1 for n in node_list if n.get("status") == "active")
+
+    return {
+        "queue_counts": counts,
+        "active_tasks": active_tasks,
+        "nodes_online": nodes_online,
+    }
