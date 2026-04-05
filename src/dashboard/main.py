@@ -7,27 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from dashboard.db import close_pool, get_pool, ping_db
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-from dashboard.routes.api import api_router
->>>>>>> origin/fleet/989feb15-d3c6-4e0d-aa44-530a6491144f
+from dashboard.routes.api import router as api_router
 from dashboard.routes.fragments import router as fragments_router
-=======
-from dashboard.routes.api import router as api_router
->>>>>>> origin/fleet/65716921-940c-419f-8319-359b71d39e7b
-=======
-from dashboard.routes.fragments import router as fragments_router
->>>>>>> origin/fleet/911b3304-1490-4058-bf85-bf9239cd6182
-=======
-from dashboard.routes.api import router as api_router
->>>>>>> origin/fleet/d18d0276-19f0-4a91-b0a2-c6b2515a0126
-=======
-from dashboard.routes.api import router as api_router
->>>>>>> origin/fleet/d5053fae-9e1d-4e9e-9813-e3594def6f2e
 
 BASE_DIR = Path(__file__).parent
 
@@ -40,19 +21,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Horde Fleet Dashboard", lifespan=lifespan)
-app.include_router(fragments_router)
 
-app.include_router(api_router)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/fleet/d18d0276-19f0-4a91-b0a2-c6b2515a0126
-=======
->>>>>>> origin/fleet/d5053fae-9e1d-4e9e-9813-e3594def6f2e
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 app.include_router(fragments_router)
+
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
