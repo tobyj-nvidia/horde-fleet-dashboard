@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="status-bar" hx-get="/fragments/queue-counts" hx-trigger="every 5s" hx-swap="outerHTML">
+    Loading...
+</div>
+
+<div class="grid-two-col">
+    <div class="card" id="active-tasks-panel">
+        <h2>Active Tasks</h2>
+        <div hx-get="/fragments/active-tasks" hx-trigger="every 5s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card" id="node-health-panel">
+        <h2>Node Health</h2>
+        <div hx-get="/fragments/nodes" hx-trigger="every 10s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+</div>
+
+<div class="grid-four-col">
+    <div class="card metric-panel" id="throughput-panel">
+        <h2>Throughput</h2>
+        <div hx-get="/fragments/throughput" hx-trigger="every 60s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card metric-panel" id="tokens-panel">
+        <h2>Token Spend</h2>
+        <div hx-get="/fragments/tokens" hx-trigger="every 60s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card metric-panel" id="failures-panel">
+        <h2>Failure Rate</h2>
+        <div hx-get="/fragments/failures" hx-trigger="every 60s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card metric-panel" id="duration-panel">
+        <h2>Task Duration</h2>
+        <div hx-get="/fragments/duration" hx-trigger="every 60s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+</div>
+
+<div class="card" id="dead-letter-panel">
+    <h2>Dead-Letter Queue</h2>
+    <div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
+{% endblock %}
