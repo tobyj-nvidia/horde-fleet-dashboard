@@ -1,0 +1,213 @@
+/* === Base === */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 1rem;
+}
+
+header {
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+header h1 {
+    font-size: 1.4rem;
+    color: #c0c0e0;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+h2 {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a0a0c0;
+    margin-bottom: 0.5rem;
+}
+
+/* === Cards === */
+.card {
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+/* === Grid layouts === */
+.grid-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.grid-four-col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+/* === Status bar === */
+.status-bar {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: #16213e;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    align-items: center;
+}
+
+.status-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    background: #0f172a;
+    min-width: 70px;
+}
+
+.status-count .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+}
+
+.status-count .count {
+    font-family: monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* === Status colors === */
+.status-pending    { color: #facc15; }
+.status-claimed    { color: #60a5fa; }
+.status-running    { color: #38bdf8; }
+.status-completed  { color: #4ade80; }
+.status-failed     { color: #f87171; }
+.status-dead-letter { color: #c084fc; }
+
+/* === Tables === */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+th {
+    text-align: left;
+    color: #888;
+    font-weight: normal;
+    border-bottom: 1px solid #2a2a4a;
+    padding: 0.25rem 0.5rem;
+}
+
+td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #1e1e3a;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* === Monospace for IDs and numbers === */
+.mono, code, .task-id, .node-id {
+    font-family: monospace;
+    font-size: 0.85em;
+    color: #b0b0d0;
+}
+
+/* === Node status indicators === */
+.node-active   { color: #4ade80; }
+.node-draining { color: #facc15; }
+.node-offline  { color: #f87171; }
+.node-stale    { color: #f87171; }
+
+/* === Metric panels === */
+.metric-panel .metric-value {
+    font-family: monospace;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #c0c0f0;
+}
+
+.metric-panel .metric-label {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.sparkline {
+    font-family: monospace;
+    font-size: 1rem;
+    letter-spacing: 0;
+    color: #6060c0;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+/* === Buttons === */
+button, .btn {
+    background: #2a2a5a;
+    color: #c0c0e0;
+    border: 1px solid #3a3a7a;
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+button:hover, .btn:hover {
+    background: #3a3a7a;
+}
+
+.btn-retry {
+    background: #3a1a4a;
+    border-color: #6a2a8a;
+    color: #c084fc;
+}
+
+.btn-retry:hover {
+    background: #5a2a7a;
+}
+
+/* === Empty states === */
+.empty-state {
+    color: #555;
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+/* === Responsive: single column on narrow screens === */
+@media (max-width: 900px) {
+    .grid-two-col,
+    .grid-four-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 0.5rem;
+    }
+
+    .status-bar {
+        gap: 0.5rem;
+    }
+}
