@@ -1,0 +1,46 @@
+<div hx-get="/fragments/nodes" hx-trigger="every 10s" hx-swap="outerHTML">
+{% if nodes %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Status</th>
+            <th>Node ID</th>
+            <th>Tasks</th>
+            <th>Heartbeat</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for node in nodes %}
+        <tr class="{% if node.is_stale %}stale{% endif %}">
+            <td class="status-indicator">
+                {% if node.is_stale %}
+                    <span class="indicator offline" title="Stale">✗</span>
+                {% elif node.status == 'active' %}
+                    <span class="indicator active" title="Active">●</span>
+                {% elif node.status == 'draining' %}
+                    <span class="indicator draining" title="Draining">○</span>
+                {% else %}
+                    <span class="indicator offline" title="{{ node.status }}">✗</span>
+                {% endif %}
+            </td>
+            <td class="mono">{{ node.node_id }}</td>
+            <td>{{ node.active_tasks }} / {{ node.max_concurrent }}</td>
+            <td class="{% if node.is_stale %}text-warn{% endif %}">
+                {% if node.heartbeat_age_sec is not none %}
+                    {% if node.heartbeat_age_sec < 60 %}
+                        {{ node.heartbeat_age_sec }}s ago
+                    {% else %}
+                        {{ (node.heartbeat_age_sec // 60) }}m {{ (node.heartbeat_age_sec % 60) }}s ago
+                    {% endif %}
+                {% else %}
+                    never
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No nodes registered.</p>
+{% endif %}
+</div>
