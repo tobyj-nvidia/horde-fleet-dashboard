@@ -14,8 +14,8 @@
     <tbody>
     {% for task in tasks %}
         <tr>
-            <td class="mono">{{ task.task_id[:8] }}…</td>
-            <td>{{ task.task_type }}</td>
+            <td class="mono">{{ task.id[:8] }}…</td>
+            <td>{{ task.type }}</td>
             <td class="prompt-snippet">{{ task.prompt_snippet }}</td>
             <td>{{ task.retry_count }}</td>
             <td>
@@ -33,7 +33,7 @@
             </td>
             <td>
                 <button
-                    hx-post="/api/tasks/{{ task.task_id }}/retry"
+                    hx-post="/api/tasks/{{ task.id }}/retry"
                     hx-target="closest tr"
                     hx-swap="outerHTML"
                     class="btn-retry">Retry</button>

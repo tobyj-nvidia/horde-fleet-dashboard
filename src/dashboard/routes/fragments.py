@@ -88,7 +88,9 @@ async def fragment_throughput(request: Request, conn=Depends(get_db)):
 @router.get("/fragments/tokens", response_class=HTMLResponse)
 async def fragment_tokens(request: Request, conn=Depends(get_db)):
     rows = await get_token_spend(conn)
-    total_usd = sum(r["total_usd"] or 0 for r in rows)
+    for r in rows:
+        r["total_usd"] = float(r["total_usd"] or 0)
+    total_usd = sum(r["total_usd"] for r in rows)
     return templates.TemplateResponse(
         "fragments/tokens.html",
         {"request": request, "rows": rows, "total_usd": total_usd},
