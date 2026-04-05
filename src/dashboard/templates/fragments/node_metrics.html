@@ -1,0 +1,39 @@
+<div hx-get="/fragments/node-metrics" hx-trigger="every 15s" hx-swap="outerHTML">
+{% if nodes %}
+<div class="node-metrics-grid">
+{% for node in nodes %}
+<div class="node-metric-card">
+    <div class="node-metric-header mono">{{ node.node_id }}</div>
+    <div class="metric-row">
+        <span class="metric-label">CPU</span>
+        <span class="metric-value {% if node.cpu_pct is not none %}{% if node.cpu_pct >= 80 %}metric-red{% elif node.cpu_pct >= 60 %}metric-yellow{% else %}metric-green{% endif %}{% endif %}">
+            {% if node.cpu_pct is not none %}{{ "%.0f"|format(node.cpu_pct) }}%{% else %}—{% endif %}
+        </span>
+        <span class="sparkline">{{ node.cpu_spark }}</span>
+    </div>
+    <div class="metric-row">
+        <span class="metric-label">GPU</span>
+        <span class="metric-value {% if node.gpu_pct is not none %}{% if node.gpu_pct >= 80 %}metric-red{% elif node.gpu_pct >= 60 %}metric-yellow{% else %}metric-green{% endif %}{% endif %}">
+            {% if node.gpu_pct is not none %}{{ "%.0f"|format(node.gpu_pct) }}%{% else %}—{% endif %}
+        </span>
+        <span class="sparkline">{{ node.gpu_spark }}</span>
+    </div>
+    <div class="metric-row">
+        <span class="metric-label">MEM</span>
+        <span class="metric-value {% if node.mem_pct is not none %}{% if node.mem_pct >= 80 %}metric-red{% elif node.mem_pct >= 60 %}metric-yellow{% else %}metric-green{% endif %}{% endif %}">
+            {% if node.mem_pct is not none %}{{ "%.0f"|format(node.mem_pct) }}%{% else %}—{% endif %}
+        </span>
+    </div>
+    <div class="metric-row">
+        <span class="metric-label">DISK</span>
+        <span class="metric-value {% if node.disk_pct is not none %}{% if node.disk_pct >= 80 %}metric-red{% elif node.disk_pct >= 60 %}metric-yellow{% else %}metric-green{% endif %}{% endif %}">
+            {% if node.disk_pct is not none %}{{ "%.0f"|format(node.disk_pct) }}%{% else %}—{% endif %}
+        </span>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<p class="empty-state">No node metrics available.</p>
+{% endif %}
+</div>

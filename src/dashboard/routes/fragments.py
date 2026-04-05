@@ -12,6 +12,8 @@ from dashboard.queries import (
     get_dead_letter,
     get_duration_percentiles,
     get_failure_rate,
+    get_node_metrics_history,
+    get_node_metrics_latest,
     get_nodes,
     get_queue_counts,
     get_throughput,
@@ -100,6 +102,32 @@ async def fragment_failures(request: Request, conn=Depends(get_db)):
     return templates.TemplateResponse(
         "fragments/failures.html",
         {"request": request, "buckets": buckets, "spark": spark},
+    )
+
+
+@router.get("/fragments/node-metrics", response_class=HTMLResponse)
+async def fragment_node_metrics(request: Request, conn=Depends(get_db)):
+    latest = await get_node_metrics_latest(conn)
+    history = await get_node_metrics_history(conn, window_hours=1, resolution_minutes=1)
+
+    history_by_node: dict[str, list] = {}
+    for row in history:
+        nid = row["node_id"]
+        if nid not in history_by_node:
+            history_by_node[nid] = []
+        history_by_node[nid].append(row)
+
+    nodes = []
+    for n in latest:
+        nid = n["node_id"]
+        hist = history_by_node.get(nid, [])
+        cpu_spark = sparkline([int(r["cpu_pct"] or 0) for r in hist]) if hist else ""
+        gpu_spark = sparkline([int(r["gpu_pct"] or 0) for r in hist]) if hist else ""
+        nodes.append({**n, "cpu_spark": cpu_spark, "gpu_spark": gpu_spark})
+
+    return templates.TemplateResponse(
+        "fragments/node_metrics.html",
+        {"request": request, "nodes": nodes},
     )
 
 

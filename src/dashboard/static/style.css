@@ -162,6 +162,79 @@ tr:last-child td {
     margin-top: 0.25rem;
 }
 
+/* === Node metric cards === */
+.node-metrics-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.node-metric-card {
+    background: #0f172a;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 0.75rem;
+    min-width: 160px;
+    flex: 1 1 160px;
+}
+
+.node-metric-header {
+    font-size: 0.8rem;
+    color: #a0a0c0;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 0.25rem;
+}
+
+.metric-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.metric-row .metric-label {
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    width: 2.5rem;
+    flex-shrink: 0;
+}
+
+.metric-row .metric-value {
+    font-family: monospace;
+    font-size: 0.9rem;
+    font-weight: bold;
+    width: 3rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.metric-row .sparkline {
+    font-family: monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0;
+    color: #6060c0;
+    overflow: hidden;
+    white-space: nowrap;
+    flex: 1;
+    display: inline;
+    margin-top: 0;
+}
+
+.metric-green { color: #4ade80; }
+.metric-yellow { color: #facc15; }
+.metric-red { color: #f87171; }
+
+@media (max-width: 900px) {
+    .node-metrics-grid {
+        flex-direction: column;
+    }
+    .node-metric-card {
+        min-width: 0;
+    }
+}
+
 /* === Buttons === */
 button, .btn {
     background: #2a2a5a;

@@ -21,6 +21,13 @@
     </div>
 </div>
 
+<div class="card" id="node-metrics-panel">
+    <h2>Node Utilization</h2>
+    <div hx-get="/fragments/node-metrics" hx-trigger="every 15s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
+
 <div class="grid-four-col">
     <div class="card metric-panel" id="throughput-panel">
         <h2>Throughput</h2>
