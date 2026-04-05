@@ -1,0 +1,48 @@
+<div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">
+{% if tasks %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Task ID</th>
+            <th>Type</th>
+            <th>Prompt</th>
+            <th>Retries</th>
+            <th>Failed</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for task in tasks %}
+        <tr>
+            <td class="mono">{{ task.task_id[:8] }}…</td>
+            <td>{{ task.task_type }}</td>
+            <td class="prompt-snippet">{{ task.prompt_snippet }}</td>
+            <td>{{ task.retry_count }}</td>
+            <td>
+                {% if task.failure_age_sec is not none %}
+                    {% if task.failure_age_sec < 60 %}
+                        {{ task.failure_age_sec }}s ago
+                    {% elif task.failure_age_sec < 3600 %}
+                        {{ (task.failure_age_sec // 60) }}m ago
+                    {% else %}
+                        {{ (task.failure_age_sec // 3600) }}h ago
+                    {% endif %}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>
+                <button
+                    hx-post="/api/tasks/{{ task.task_id }}/retry"
+                    hx-target="closest tr"
+                    hx-swap="outerHTML"
+                    class="btn-retry">Retry</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No dead-letter tasks.</p>
+{% endif %}
+</div>
