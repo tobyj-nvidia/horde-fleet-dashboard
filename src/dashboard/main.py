@@ -6,9 +6,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import importlib
+import pkgutil
+
+import dashboard.routes as routes_pkg
 from dashboard.db import close_pool, get_pool, ping_db
-from dashboard.routes.api import router as api_router
-from dashboard.routes.fragments import router as fragments_router
 
 BASE_DIR = Path(__file__).parent
 
@@ -23,8 +25,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Horde Fleet Dashboard", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-app.include_router(api_router)
-app.include_router(fragments_router)
+
+for _importer, _modname, _ispkg in pkgutil.iter_modules(routes_pkg.__path__):
+    _module = importlib.import_module(f"dashboard.routes.{_modname}")
+    if hasattr(_module, "router"):
+        app.include_router(_module.router)
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
