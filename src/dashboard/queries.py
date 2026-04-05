@@ -261,6 +261,80 @@ async def get_tasks(
     return [dict(row) for row in rows], total
 
 
+async def get_node_metrics_latest(conn) -> list[dict]:
+    """Most recent row per node from node_metrics."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT nm.node_id, nm.cpu_pct, nm.mem_pct, nm.mem_used_gb, nm.mem_total_gb,
+                   nm.gpu_pct, nm.gpu_mem_pct, nm.gpu_mem_used_gb, nm.gpu_mem_total_gb,
+                   nm.disk_pct, nm.recorded_at
+            FROM node_metrics nm
+            INNER JOIN (
+                SELECT node_id, MAX(recorded_at) AS max_recorded_at
+                FROM node_metrics
+                GROUP BY node_id
+            ) latest ON nm.node_id = latest.node_id AND nm.recorded_at = latest.max_recorded_at
+            ORDER BY nm.node_id ASC
+            """
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def get_node_metrics_history(
+    conn,
+    node_id: str | None = None,
+    window_hours: int = 24,
+    resolution_minutes: int = 5,
+) -> list[dict]:
+    """Downsampled node metrics history. If node_id is None, average across all nodes."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        if node_id is not None:
+            await cur.execute(
+                """
+                SELECT
+                    FROM_UNIXTIME(
+                        FLOOR(UNIX_TIMESTAMP(recorded_at) / (%s * 60)) * (%s * 60)
+                    ) AS timestamp,
+                    node_id,
+                    AVG(cpu_pct) AS cpu_pct,
+                    AVG(gpu_pct) AS gpu_pct,
+                    AVG(gpu_mem_pct) AS gpu_mem_pct,
+                    AVG(mem_pct) AS mem_pct,
+                    AVG(disk_pct) AS disk_pct
+                FROM node_metrics
+                WHERE node_id = %s
+                  AND recorded_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)
+                GROUP BY FLOOR(UNIX_TIMESTAMP(recorded_at) / (%s * 60)), node_id
+                ORDER BY timestamp ASC
+                """,
+                (resolution_minutes, resolution_minutes, node_id, window_hours, resolution_minutes),
+            )
+        else:
+            await cur.execute(
+                """
+                SELECT
+                    FROM_UNIXTIME(
+                        FLOOR(UNIX_TIMESTAMP(recorded_at) / (%s * 60)) * (%s * 60)
+                    ) AS timestamp,
+                    NULL AS node_id,
+                    AVG(cpu_pct) AS cpu_pct,
+                    AVG(gpu_pct) AS gpu_pct,
+                    AVG(gpu_mem_pct) AS gpu_mem_pct,
+                    AVG(mem_pct) AS mem_pct,
+                    AVG(disk_pct) AS disk_pct
+                FROM node_metrics
+                WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)
+                GROUP BY FLOOR(UNIX_TIMESTAMP(recorded_at) / (%s * 60))
+                ORDER BY timestamp ASC
+                """,
+                (resolution_minutes, resolution_minutes, window_hours, resolution_minutes),
+            )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

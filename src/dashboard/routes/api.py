@@ -8,6 +8,8 @@ from dashboard.db import get_db
 from dashboard.queries import (
     get_duration_percentiles,
     get_failure_rate,
+    get_node_metrics_history,
+    get_node_metrics_latest,
     get_nodes,
     get_queue_counts,
     get_task,
@@ -22,12 +24,26 @@ router = APIRouter(prefix="/api")
 VALID_STATUSES = {"pending", "claimed", "running", "completed", "failed", "dead-letter"}
 ALL_STATUSES = ("pending", "claimed", "running", "completed", "failed", "dead-letter")
 _WINDOW_MAP: dict[str, int] = {"7d": 7, "30d": 30, "90d": 90}
+_METRICS_WINDOW_MAP: dict[str, int] = {"24h": 24, "6h": 6, "1h": 1}
+_RESOLUTION_MAP: dict[str, int] = {"5m": 5, "1m": 1, "15m": 15}
 
 
 def _parse_window(window: str) -> int:
     if window not in _WINDOW_MAP:
         raise HTTPException(status_code=422, detail="Invalid window: must be 7d, 30d, or 90d")
     return _WINDOW_MAP[window]
+
+
+def _parse_metrics_window(window: str) -> int:
+    if window not in _METRICS_WINDOW_MAP:
+        raise HTTPException(status_code=422, detail="Invalid window: must be 24h, 6h, or 1h")
+    return _METRICS_WINDOW_MAP[window]
+
+
+def _parse_resolution(resolution: str) -> int:
+    if resolution not in _RESOLUTION_MAP:
+        raise HTTPException(status_code=422, detail="Invalid resolution: must be 5m, 1m, or 15m")
+    return _RESOLUTION_MAP[resolution]
 
 
 # ── Task endpoints (T-005/T-006) ─────────────────────────────────────────────
@@ -152,6 +168,40 @@ async def metrics_duration(
         "p99_sec": data["p99_sec"],
         "avg_sec": data["avg_sec"],
     }
+
+
+# ── Node metrics endpoints ───────────────────────────────────────────────────
+
+
+@router.get("/metrics/nodes/latest")
+async def node_metrics_latest(db=Depends(get_db)):
+    nodes = await get_node_metrics_latest(db)
+    return {"nodes": nodes}
+
+
+@router.get("/metrics/nodes/history")
+async def node_metrics_history(
+    node_id: str | None = Query(default=None),
+    window: Annotated[str, Query()] = "24h",
+    resolution: Annotated[str, Query()] = "5m",
+    db=Depends(get_db),
+):
+    window_hours = _parse_metrics_window(window)
+    resolution_minutes = _parse_resolution(resolution)
+    rows = await get_node_metrics_history(db, node_id=node_id, window_hours=window_hours, resolution_minutes=resolution_minutes)
+    series = [
+        {
+            "timestamp": str(row["timestamp"]),
+            "node_id": row["node_id"],
+            "cpu_pct": row["cpu_pct"],
+            "gpu_pct": row["gpu_pct"],
+            "gpu_mem_pct": row["gpu_mem_pct"],
+            "mem_pct": row["mem_pct"],
+            "disk_pct": row["disk_pct"],
+        }
+        for row in rows
+    ]
+    return {"series": series}
 
 
 # ── Retry endpoint (T-010) ───────────────────────────────────────────────────
