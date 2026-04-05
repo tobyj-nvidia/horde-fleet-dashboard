@@ -71,9 +71,10 @@ async def get_dead_letter(conn, limit: int = 20) -> list[dict]:
                 t.status,
                 t.retry_count,
                 t.submitted_at,
-                t.submitted_at,
+                LEFT(t.prompt, 60) AS prompt_snippet,
                 tr.error_msg,
-                tr.completed_at
+                tr.completed_at,
+                TIMESTAMPDIFF(SECOND, tr.completed_at, NOW()) AS failure_age_sec
             FROM tasks t
             LEFT JOIN task_results tr ON t.id = tr.task_id
             WHERE t.status = %s
@@ -172,9 +173,9 @@ async def get_token_spend(conn, window_days: int = 7) -> list[dict]:
                 provider,
                 model,
                 SUM(input_tokens + output_tokens) AS total_tokens,
-                SUM(cost_usd) AS total_usd
+                SUM(estimated_cost_usd) AS total_usd
             FROM task_telemetry
-            WHERE submitted_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             GROUP BY provider, model
             ORDER BY total_usd DESC
             """,
@@ -188,7 +189,7 @@ async def get_task(conn, task_id: str) -> dict | None:
     """Full task + result + telemetry aggregates for a single task."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
-            "SELECT * FROM tasks WHERE task_id = %s",
+            "SELECT * FROM tasks WHERE id = %s",
             (task_id,),
         )
         task_row = await cur.fetchone()
@@ -344,9 +345,8 @@ async def retry_task(conn, task_id: str) -> bool:
             SET
                 status = %s,
                 claimed_by = NULL,
-                claim_expires_at = NULL,
                 started_at = NULL
-            WHERE task_id = %s
+            WHERE id = %s
               AND status = %s
             """,
             ("pending", task_id, "dead-letter"),
