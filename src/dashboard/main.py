@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from dashboard.db import close_pool, get_pool, ping_db
+from dashboard.routes.fragments import router as fragments_router
 
 BASE_DIR = Path(__file__).parent
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Horde Fleet Dashboard", lifespan=lifespan)
+app.include_router(fragments_router)
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
