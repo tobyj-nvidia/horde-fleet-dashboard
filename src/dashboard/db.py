@@ -1,6 +1,12 @@
 import asyncio
+import logging
+from typing import AsyncGenerator
+
 import aiomysql
+
 from dashboard.config import settings
+
+logger = logging.getLogger(__name__)
 
 _pool: aiomysql.Pool | None = None
 
@@ -29,7 +35,19 @@ async def close_pool() -> None:
         _pool = None
 
 
-async def get_db():
+async def get_db() -> AsyncGenerator[aiomysql.Connection, None]:
     pool = await get_pool()
     async with pool.acquire() as conn:
         yield conn
+
+
+async def ping_db() -> bool:
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await asyncio.wait_for(cur.execute("SELECT 1"), timeout=settings.query_timeout_sec)
+        return True
+    except Exception as exc:
+        logger.warning("DB ping failed: %s", exc)
+        return False

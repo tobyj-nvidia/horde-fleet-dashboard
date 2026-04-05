@@ -1,11 +1,11 @@
-import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
-from dashboard.config import settings
-from dashboard.db import get_pool, close_pool
+
+from dashboard.db import close_pool, get_pool, ping_db
 
 BASE_DIR = Path(__file__).parent
 
@@ -25,13 +25,5 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 @app.get("/healthz")
 async def healthz():
-    db_status = "unavailable"
-    try:
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await asyncio.wait_for(cur.execute("SELECT 1"), timeout=settings.query_timeout_sec)
-        db_status = "connected"
-    except Exception:
-        pass
+    db_status = "connected" if await ping_db() else "unavailable"
     return {"status": "ok", "db": db_status}
