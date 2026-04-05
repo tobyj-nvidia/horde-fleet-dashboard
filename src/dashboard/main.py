@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from dashboard.db import close_pool, get_pool, ping_db
-from dashboard.routes.api import router as api_router
+from dashboard.routes.api import api_router
 from dashboard.routes.fragments import router as fragments_router
 
 BASE_DIR = Path(__file__).parent
