@@ -145,6 +145,18 @@ def sample_recent_completed():
             "duration_seconds": 300,
             "_duration": "5m 0s",
             "commit_hashes": "abc1234,def5678",
+            "repo_slug": "acme/core",
+            "branch": "main",
+            "commit_sha": "abc12345",
+            "push_target": "main",
+            "repo_commits": [
+                {
+                    "repo_slug": "acme/core",
+                    "branch": "main",
+                    "commit_sha": "abc12345",
+                    "push_target": "main",
+                }
+            ],
         }
     ]
 

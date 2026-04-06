@@ -323,6 +323,7 @@ async def test_get_node_utilization_history_columns(db_conn):
 RECENT_COMPLETED_REQUIRED_COLUMNS = {
     "id", "name", "project", "claimed_by", "started_at",
     "completed_at", "repos", "duration_seconds", "commit_hashes",
+    "repo_slug", "branch", "commit_sha", "push_target", "repo_commits",
 }
 
 
@@ -349,6 +350,29 @@ async def test_get_recent_completed_status_filter(db_conn):
     # This validates the WHERE clause uses the right status literal
     # The query itself filters, so we just verify SQL runs and returns list
     assert isinstance(result, list)
+
+
+@pytest.mark.asyncio
+async def test_get_recent_completed_has_repo_columns(db_conn):
+    """Verify repo_slug, branch, commit_sha columns exist in returned rows."""
+    result = await get_recent_completed(db_conn)
+    if not result:
+        pytest.skip("No completed tasks — column check skipped")
+    for row in result:
+        assert "repo_slug" in row, "Missing column: repo_slug"
+        assert "branch" in row, "Missing column: branch"
+        assert "commit_sha" in row, "Missing column: commit_sha"
+
+
+@pytest.mark.asyncio
+async def test_get_recent_completed_push_target(db_conn):
+    """Verify push_target is 'main' or 'branch' for tasks with commits."""
+    result = await get_recent_completed(db_conn)
+    for row in result:
+        if row["push_target"] is not None:
+            assert row["push_target"] in ("main", "branch"), (
+                f"Expected push_target in ('main', 'branch'), got {row['push_target']!r}"
+            )
 
 
 # ---------------------------------------------------------------------------

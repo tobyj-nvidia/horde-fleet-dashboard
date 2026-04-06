@@ -9,6 +9,7 @@
         <th>Duration</th>
         <th>Completed</th>
         <th>Commits</th>
+        <th>Repos</th>
       </tr>
     </thead>
     <tbody>
@@ -20,6 +21,22 @@
         <td>{{ task._duration }}</td>
         <td class="text-muted">{{ task.completed_at or "—" }}</td>
         <td class="mono">{{ task.commit_hashes or "—" }}</td>
+        <td>
+          {% if task.repo_commits %}
+            {% for rc in task.repo_commits %}
+            <div>
+              <a href="https://github.com/{{ rc.repo_slug }}/commit/{{ rc.commit_sha }}" target="_blank" class="mono">{{ rc.repo_slug.split('/')[-1] }}</a>
+              {% if rc.push_target == 'main' %}
+              <span class="badge badge-green">main</span>
+              {% else %}
+              <span class="badge badge-yellow">branch</span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          —
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

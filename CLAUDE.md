@@ -18,6 +18,6 @@ The worker will handle pushing and merging to the target branch.
 **Uncommitted changes are lost when the task completes.**
 
 ## Working Directory
-You are in: `/tmp/fleet-workspaces/tobyj-nvidia/horde-fleet-dashboard/slot-0`
+You are in: `/tmp/fleet-workspaces/tobyj-nvidia/horde-fleet-dashboard/slot-2`
 Repos are checked out here. Use files directly — do not clone.
 

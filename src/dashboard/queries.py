@@ -368,7 +368,7 @@ async def get_node_utilization_history(conn) -> list[dict]:
 
 
 async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
-    """Recent completed tasks with duration and commit hashes."""
+    """Recent completed tasks with duration, commit hashes, and repo info."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
@@ -381,7 +381,10 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
                 t.completed_at,
                 t.repos,
                 TIMESTAMPDIFF(SECOND, t.started_at, t.completed_at) AS duration_seconds,
-                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 7)) AS commit_hashes
+                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 7)) AS commit_hashes,
+                GROUP_CONCAT(tc.repo_slug ORDER BY tc.repo_slug SEPARATOR '|') AS repo_slug,
+                GROUP_CONCAT(tc.branch ORDER BY tc.repo_slug SEPARATOR '|') AS branch,
+                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 8) ORDER BY tc.repo_slug SEPARATOR '|') AS commit_sha
             FROM tasks t
             LEFT JOIN task_commits tc ON tc.task_id = t.id
             WHERE t.status = %s
@@ -392,7 +395,28 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
             ("completed", limit),
         )
         rows = await cur.fetchall()
-    return [dict(row) for row in rows]
+    result = []
+    for row in rows:
+        d = dict(row)
+        if d["repo_slug"]:
+            slugs = d["repo_slug"].split("|")
+            branches = d["branch"].split("|")
+            shas = d["commit_sha"].split("|")
+            d["repo_commits"] = [
+                {
+                    "repo_slug": slug,
+                    "branch": branch,
+                    "commit_sha": sha,
+                    "push_target": "main" if branch == "main" else "branch",
+                }
+                for slug, branch, sha in zip(slugs, branches, shas)
+            ]
+            d["push_target"] = "main" if any(b == "main" for b in branches) else "branch"
+        else:
+            d["repo_commits"] = []
+            d["push_target"] = None
+        result.append(d)
+    return result
 
 
 async def get_recent_failed(conn, limit: int = 10) -> list[dict]:

@@ -168,10 +168,77 @@ def test_recent_completed_required_columns_present(jinja_env):
         "duration_seconds": 300,
         "_duration": "5m 0s",
         "commit_hashes": "abc1234",
+        "repo_slug": "acme/core",
+        "branch": "main",
+        "commit_sha": "abc12345",
+        "push_target": "main",
+        "repo_commits": [
+            {
+                "repo_slug": "acme/core",
+                "branch": "main",
+                "commit_sha": "abc12345",
+                "push_target": "main",
+            }
+        ],
     }
     # Should not raise UndefinedError
     html = render(jinja_env, "fragments/recent_completed.html", tasks=[minimal_row])
     assert "5m 0s" in html
+
+
+def test_recent_completed_renders_with_repos(jinja_env):
+    """Template shows repo name badge and GitHub commit link when commits exist."""
+    task = {
+        "id": "task-done-01",
+        "name": "gen-feature-y",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 09:30:00",
+        "completed_at": "2026-04-06 09:35:00",
+        "repos": "tobyj-nvidia/horde-claw-fleet",
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": "abc12345",
+        "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+        "branch": "main",
+        "commit_sha": "abc12345",
+        "push_target": "main",
+        "repo_commits": [
+            {
+                "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+                "branch": "main",
+                "commit_sha": "abc12345",
+                "push_target": "main",
+            }
+        ],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "horde-claw-fleet" in html
+    assert "main" in html
+    assert "abc12345" in html
+
+
+def test_recent_completed_renders_without_repos(jinja_env):
+    """Template shows '—' in Repos column when task has no commits."""
+    task = {
+        "id": "task-done-02",
+        "name": "gen-no-commits",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 09:30:00",
+        "completed_at": "2026-04-06 09:35:00",
+        "repos": None,
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": None,
+        "repo_slug": None,
+        "branch": None,
+        "commit_sha": None,
+        "push_target": None,
+        "repo_commits": [],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "—" in html
 
 
 # ---------------------------------------------------------------------------
