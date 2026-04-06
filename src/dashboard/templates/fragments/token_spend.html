@@ -1,0 +1,37 @@
+<div hx-get="/fragments/token-spend?period={{ period }}" hx-trigger="every 60s" hx-swap="outerHTML" class="fragment-token-spend">
+  <div class="period-selector">
+    <a hx-get="/fragments/token-spend?period=1" hx-target="closest .fragment-token-spend" hx-swap="outerHTML" class="period-btn{% if period == 1 %} active{% endif %}">1d</a>
+    <a hx-get="/fragments/token-spend?period=7" hx-target="closest .fragment-token-spend" hx-swap="outerHTML" class="period-btn{% if period == 7 %} active{% endif %}">7d</a>
+    <a hx-get="/fragments/token-spend?period=30" hx-target="closest .fragment-token-spend" hx-swap="outerHTML" class="period-btn{% if period == 30 %} active{% endif %}">30d</a>
+  </div>
+  <div class="token-spend-summary">
+    <span class="token-total">{{ total_tokens }} tokens</span>
+    <span class="cost-total">${{ "%.4f"|format(total_cost_usd) }}</span>
+  </div>
+  {% if not rows %}
+    <p class="no-data">No data</p>
+  {% else %}
+    <table class="metric-table">
+      <thead>
+        <tr><th>Source</th><th>Model</th><th>Tokens</th><th>USD</th></tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td><span class="badge source-badge-{{ r.source or 'unknown' }}">{{ r.source or '—' }}</span></td>
+          <td>{{ r.model }}</td>
+          <td>{{ r.total_tokens }}</td>
+          <td>${{ "%.4f"|format(r.total_cost_usd or 0) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2"><strong>Total</strong></td>
+          <td><strong>{{ total_tokens }}</strong></td>
+          <td><strong>${{ "%.4f"|format(total_cost_usd) }}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+  {% endif %}
+</div>

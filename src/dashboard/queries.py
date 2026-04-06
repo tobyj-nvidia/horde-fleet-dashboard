@@ -173,6 +173,25 @@ async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_token_spend_summary(conn, period_days: int = 1) -> list[dict]:
+    """Per source/model token usage and cost from task_telemetry."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT source, model,
+                   SUM(input_tokens + output_tokens) AS total_tokens,
+                   SUM(estimated_cost_usd) AS total_cost_usd
+            FROM task_telemetry
+            WHERE recorded_at >= NOW() - INTERVAL %s DAY
+            GROUP BY source, model
+            ORDER BY total_cost_usd DESC
+            """,
+            (period_days,),
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def get_token_spend(conn, window_days: int = 7) -> list[dict]:
     """Per provider/model token usage from task_telemetry."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

@@ -22,6 +22,7 @@ from dashboard.queries import (
     get_recent_failed,
     get_throughput,
     get_token_spend,
+    get_token_spend_summary,
 )
 from dashboard.sparkline import sparkline
 
@@ -86,6 +87,26 @@ async def fragment_throughput(request: Request, conn=Depends(get_db)):
     return templates.TemplateResponse(
         "fragments/throughput.html",
         {"request": request, "buckets": buckets, "spark": spark},
+    )
+
+
+@router.get("/fragments/token-spend", response_class=HTMLResponse)
+async def fragment_token_spend(request: Request, period: int = 1, conn=Depends(get_db)):
+    rows = await get_token_spend_summary(conn, period_days=period)
+    for r in rows:
+        r["total_cost_usd"] = float(r["total_cost_usd"] or 0)
+        r["total_tokens"] = int(r["total_tokens"] or 0)
+    total_tokens = sum(r["total_tokens"] for r in rows)
+    total_cost_usd = sum(r["total_cost_usd"] for r in rows)
+    return templates.TemplateResponse(
+        "fragments/token_spend.html",
+        {
+            "request": request,
+            "rows": rows,
+            "total_tokens": total_tokens,
+            "total_cost_usd": total_cost_usd,
+            "period": period,
+        },
     )
 
 

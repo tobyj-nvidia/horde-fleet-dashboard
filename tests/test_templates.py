@@ -393,6 +393,64 @@ def test_tokens_renders(jinja_env, sample_token_rows):
 
 
 # ---------------------------------------------------------------------------
+# token_spend.html
+# ---------------------------------------------------------------------------
+
+def test_token_spend_renders_with_data(jinja_env):
+    rows = [
+        {"source": "task", "model": "claude-sonnet-4-6", "total_tokens": 50000, "total_cost_usd": 0.25},
+        {"source": "gateway", "model": "claude-haiku-4-5", "total_tokens": 10000, "total_cost_usd": 0.05},
+    ]
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        rows=rows, total_tokens=60000, total_cost_usd=0.30, period=1,
+    )
+    assert "task" in html
+    assert "gateway" in html
+    assert "claude-sonnet-4-6" in html
+    assert "0.3000" in html
+
+
+def test_token_spend_empty(jinja_env):
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
+    )
+    assert "No data" in html
+
+
+def test_token_spend_period_selector_shows_active(jinja_env):
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        rows=[], total_tokens=0, total_cost_usd=0.0, period=7,
+    )
+    assert "7d" in html
+    assert "active" in html
+
+
+def test_token_spend_all_periods_present(jinja_env):
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
+    )
+    assert "1d" in html
+    assert "7d" in html
+    assert "30d" in html
+
+
+def test_token_spend_source_badge_rendered(jinja_env):
+    rows = [
+        {"source": "cron", "model": "claude-opus-4-6", "total_tokens": 1000, "total_cost_usd": 0.10},
+    ]
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        rows=rows, total_tokens=1000, total_cost_usd=0.10, period=1,
+    )
+    assert "source-badge-cron" in html
+    assert "cron" in html
+
+
+# ---------------------------------------------------------------------------
 # duration.html
 # ---------------------------------------------------------------------------
 
