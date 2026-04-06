@@ -381,7 +381,7 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
                 t.completed_at,
                 t.repos,
                 TIMESTAMPDIFF(SECOND, t.started_at, t.completed_at) AS duration_seconds,
-                GROUP_CONCAT(SUBSTRING(tc.sha, 1, 7)) AS commit_hashes
+                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 7)) AS commit_hashes
             FROM tasks t
             LEFT JOIN task_commits tc ON tc.task_id = t.id
             WHERE t.status = %s
@@ -406,7 +406,7 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
                 t.project,
                 t.claimed_by,
                 t.completed_at,
-                t.error_message,
+                tr.error_msg,
                 t.retry_count,
                 t.max_retries,
                 t.status,
@@ -417,6 +417,7 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
                       AND t2.completed_at > t.completed_at
                 ) AS is_resolved
             FROM tasks t
+            LEFT JOIN task_results tr ON tr.task_id = t.id
             WHERE t.status IN ('failed', 'dead_letter')
             ORDER BY t.completed_at DESC
             LIMIT %s
