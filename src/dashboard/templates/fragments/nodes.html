@@ -15,7 +15,7 @@
             <td class="status-indicator">
                 {% if node.is_stale %}
                     <span class="indicator offline" title="Stale">✗</span>
-                {% elif node.status == 'active' %}
+                {% elif node.status in ['active', 'online'] %}
                     <span class="indicator active" title="Active">●</span>
                 {% elif node.status == 'draining' %}
                     <span class="indicator draining" title="Draining">○</span>

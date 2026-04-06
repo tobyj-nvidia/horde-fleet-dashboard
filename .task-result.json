@@ -1,0 +1,1 @@
+{"outcome": "success", "summary": "Updated nodes.html template to recognize 'online' status as green/active indicator, in addition to 'active'.", "artifacts": ["src/dashboard/templates/fragments/nodes.html"]}
