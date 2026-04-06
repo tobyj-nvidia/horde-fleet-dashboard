@@ -28,6 +28,13 @@
     </div>
 </div>
 
+<div class="card" id="gpu-panel">
+    <h2>GPU Utilization</h2>
+    <div hx-get="/fragments/gpu-panel" hx-trigger="every 15s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
+
 <div class="card" id="node-utilization-chart-panel">
     <div hx-get="/fragments/node-utilization-chart" hx-trigger="every 60s" hx-swap="outerHTML">
         Loading chart...

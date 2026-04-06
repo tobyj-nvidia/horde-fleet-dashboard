@@ -5,6 +5,7 @@
       <tr>
         <th>Task ID</th>
         <th>Type</th>
+        <th>Resource</th>
         <th>Node</th>
         <th>Elapsed</th>
       </tr>
@@ -14,6 +15,13 @@
       <tr>
         <td class="mono">{{ task.id[:8] }}</td>
         <td>{{ task.type }}</td>
+        <td>
+          {% if task.resource_class == 'gpu' %}
+          <span class="badge badge-gpu">GPU</span>
+          {% else %}
+          <span class="badge badge-cpu">CPU</span>
+          {% endif %}
+        </td>
         <td>{{ task.claimed_by or "—" }}</td>
         <td>{{ task._elapsed }}</td>
       </tr>

@@ -286,6 +286,79 @@ tr.stale td { opacity: 0.65; }
     font-size: 0.8em;
 }
 
+/* === GPU Panel === */
+.gpu-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.gpu-counters {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.gpu-gauges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.gpu-gauge-card {
+    background: #0f172a;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 0.75rem;
+    min-width: 160px;
+    flex: 1 1 160px;
+}
+
+.gpu-gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.gauge-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: #1e1e3a;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.gauge-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: currentColor;
+    transition: width 0.3s ease;
+}
+
+/* === Resource class badges === */
+.badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-gpu {
+    background: #1a3a2a;
+    color: #4ade80;
+    border: 1px solid #2a5a3a;
+}
+
+.badge-cpu {
+    background: #1a2a3a;
+    color: #60a5fa;
+    border: 1px solid #2a3a5a;
+}
+
 /* === Responsive: single column on narrow screens === */
 @media (max-width: 900px) {
     .grid-two-col,
