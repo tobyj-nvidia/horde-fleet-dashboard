@@ -13,13 +13,10 @@ from dashboard.queries import (
     get_dead_letter,
     get_duration_percentiles,
     get_failure_rate,
-    get_gpu_queue_depth,
-    get_gpu_utilization,
     get_node_metrics_history,
     get_node_metrics_latest,
     get_node_utilization_history,
     get_nodes,
-    get_oom_count,
     get_queue_counts,
     get_throughput,
     get_token_spend,
@@ -175,22 +172,6 @@ async def fragment_node_utilization_chart(request: Request, conn=Depends(get_db)
     return templates.TemplateResponse(
         "fragments/node_utilization_chart.html",
         {"request": request, "nodes": nodes},
-    )
-
-
-@router.get("/fragments/gpu-panel", response_class=HTMLResponse)
-async def fragment_gpu_panel(request: Request, conn=Depends(get_db)):
-    nodes = await get_gpu_utilization(conn)
-    queue_depth = await get_gpu_queue_depth(conn)
-    oom_count = await get_oom_count(conn)
-    return templates.TemplateResponse(
-        "fragments/gpu_panel.html",
-        {
-            "request": request,
-            "nodes": nodes,
-            "queue_depth": queue_depth,
-            "oom_count": oom_count,
-        },
     )
 
 

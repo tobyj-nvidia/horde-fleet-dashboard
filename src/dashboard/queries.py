@@ -362,63 +362,6 @@ async def get_node_utilization_history(conn) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-async def get_gpu_utilization(conn) -> list[dict]:
-    """Per-node count of active GPU tasks vs gpu_capacity from nodes."""
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            """
-            SELECT
-                n.id AS node_id,
-                n.gpu_capacity,
-                COUNT(t.id) AS active_gpu_tasks
-            FROM nodes n
-            LEFT JOIN tasks t
-                ON t.claimed_by = n.id
-                AND t.resource_class = %s
-                AND t.status IN (%s, %s)
-            WHERE n.gpu_capacity > 0
-            GROUP BY n.id, n.gpu_capacity
-            ORDER BY n.id ASC
-            """,
-            ("gpu", "claimed", "running"),
-        )
-        rows = await cur.fetchall()
-    result = []
-    for row in rows:
-        d = dict(row)
-        cap = d["gpu_capacity"] or 1
-        d["gpu_util_pct"] = round(100.0 * d["active_gpu_tasks"] / cap)
-        result.append(d)
-    return result
-
-
-async def get_gpu_queue_depth(conn) -> int:
-    """Count of pending tasks with resource_class='gpu'."""
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            "SELECT COUNT(*) AS cnt FROM tasks WHERE resource_class = %s AND status = %s",
-            ("gpu", "pending"),
-        )
-        row = await cur.fetchone()
-    return row["cnt"] if row else 0
-
-
-async def get_oom_count(conn) -> int:
-    """Count of tasks with dead_letter_reason='oom_killed' in the last 24 hours."""
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM tasks
-            WHERE dead_letter_reason = %s
-              AND updated_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            """,
-            ("oom_killed",),
-        )
-        row = await cur.fetchone()
-    return row["cnt"] if row else 0
-
-
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
