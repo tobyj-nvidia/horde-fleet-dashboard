@@ -1,14 +1,1 @@
-{
-  "outcome": "success",
-  "summary": "Created a comprehensive 91-test suite for the horde-fleet-dashboard. The tests immediately caught 3 real production bugs: (1) recent_failed.html references task.error_message but the query returns error_msg — causes silent empty error column in UI; (2) get_recent_failed() uses WHERE status IN ('failed', 'dead_letter') with underscore — should be 'dead-letter' with hyphen, silently excluding all dead-letter tasks from the widget; (3) get_task() and retry_task() use WHERE task_id = %s but the tasks table PK column is 'id' — both functions are completely broken. Tests include: test_queries.py (32 tests — execute every query, verify columns), test_routes.py (15 tests — HTTP 200 for every fragment endpoint), test_templates.py (24 tests — render every template with StrictUndefined to catch column mismatches), test_schema.py (20 tests — DESCRIBE each table and compare against query references, plus static analysis). Also added Makefile with make test / make test-queries / etc., and updated pyproject.toml with [project.optional-dependencies] test and [tool.pytest.ini_options].",
-  "artifacts": [
-    "tests/__init__.py",
-    "tests/conftest.py",
-    "tests/test_queries.py",
-    "tests/test_routes.py",
-    "tests/test_templates.py",
-    "tests/test_schema.py",
-    "Makefile",
-    "pyproject.toml"
-  ]
-}
+{"outcome": "success", "summary": "Created adrs/0001-full-test-coverage/README.md — a comprehensive ADR documenting: the 3 production breakages that motivated it (wrong column names, enum value typos, import path errors); full inventory of the codebase (16 exported query functions, 23 routes, 14 templates, 91 existing tests across 4 files); four-layer test architecture with per-function/route/template coverage targets; gap analysis identifying missing coverage (get_task + retry_task queries, all 11 API routes, base/index templates, integration tests); phased implementation plan; and full test coverage matrix with success criteria.", "artifacts": ["adrs/0001-full-test-coverage/README.md"]}
