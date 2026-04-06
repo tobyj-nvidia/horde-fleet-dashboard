@@ -418,7 +418,7 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
                 ) AS is_resolved
             FROM tasks t
             LEFT JOIN task_results tr ON tr.task_id = t.id
-            WHERE t.status IN ('failed', 'dead_letter')
+            WHERE t.status IN ('failed', 'dead-letter')
             ORDER BY t.completed_at DESC
             LIMIT %s
             """,
