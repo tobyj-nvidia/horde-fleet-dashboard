@@ -19,6 +19,7 @@ async def get_active_tasks(conn) -> list[dict]:
             SELECT
                 t.id,
                 t.type,
+                t.project,
                 t.status,
                 t.claimed_by,
                 t.started_at,
@@ -69,6 +70,7 @@ async def get_dead_letter(conn, limit: int = 20) -> list[dict]:
             SELECT
                 t.id,
                 t.type,
+                t.project,
                 t.status,
                 t.retry_count,
                 t.submitted_at,

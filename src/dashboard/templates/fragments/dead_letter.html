@@ -5,6 +5,7 @@
         <tr>
             <th>Task ID</th>
             <th>Type</th>
+            <th>Project</th>
             <th>Prompt</th>
             <th>Retries</th>
             <th>Failed</th>
@@ -16,6 +17,7 @@
         <tr>
             <td class="mono">{{ task.id[:8] }}…</td>
             <td>{{ task.type }}</td>
+            <td class="text-muted">{{ task.project or "—" }}</td>
             <td class="prompt-snippet">{{ task.prompt_snippet }}</td>
             <td>{{ task.retry_count }}</td>
             <td>

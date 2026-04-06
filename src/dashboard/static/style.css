@@ -274,6 +274,7 @@ button:hover, .btn:hover {
 
 tr.stale td { opacity: 0.65; }
 .text-warn { color: #f87171; }
+.text-muted { color: #888; }
 
 .data-table { width: 100%; }
 
