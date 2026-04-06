@@ -407,11 +407,11 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
                     "repo_slug": slug,
                     "branch": branch,
                     "commit_sha": sha,
-                    "push_target": "main" if branch == "main" else "branch",
+                    "push_target": "main" if branch.startswith("fleet/") else branch,
                 }
                 for slug, branch, sha in zip(slugs, branches, shas)
             ]
-            d["push_target"] = "main" if any(b == "main" for b in branches) else "branch"
+            d["push_target"] = "main" if any(b.startswith("fleet/") for b in branches) else branches[0]
         else:
             d["repo_commits"] = []
             d["push_target"] = None

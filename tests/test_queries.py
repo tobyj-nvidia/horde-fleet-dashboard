@@ -366,13 +366,20 @@ async def test_get_recent_completed_has_repo_columns(db_conn):
 
 @pytest.mark.asyncio
 async def test_get_recent_completed_push_target(db_conn):
-    """Verify push_target is 'main' or 'branch' for tasks with commits."""
+    """Verify fleet/ branches show push_target='main'; others show the actual branch name."""
     result = await get_recent_completed(db_conn)
     for row in result:
-        if row["push_target"] is not None:
-            assert row["push_target"] in ("main", "branch"), (
-                f"Expected push_target in ('main', 'branch'), got {row['push_target']!r}"
-            )
+        for rc in row.get("repo_commits", []):
+            branch = rc["branch"]
+            push_target = rc["push_target"]
+            if branch.startswith("fleet/"):
+                assert push_target == "main", (
+                    f"fleet/ branch {branch!r} should have push_target='main', got {push_target!r}"
+                )
+            else:
+                assert push_target == branch, (
+                    f"Non-fleet branch {branch!r} should have push_target={branch!r}, got {push_target!r}"
+                )
 
 
 # ---------------------------------------------------------------------------

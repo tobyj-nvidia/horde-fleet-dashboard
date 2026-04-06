@@ -29,7 +29,7 @@
               {% if rc.push_target == 'main' %}
               <span class="badge badge-green">main</span>
               {% else %}
-              <span class="badge badge-yellow">branch</span>
+              <span class="badge badge-yellow">{{ rc.push_target }}</span>
               {% endif %}
             </div>
             {% endfor %}

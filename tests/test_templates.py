@@ -241,6 +241,70 @@ def test_recent_completed_renders_without_repos(jinja_env):
     assert "—" in html
 
 
+def test_recent_completed_fleet_branch_shows_main(jinja_env):
+    """fleet/ task branches should render as green 'main' badge."""
+    task = {
+        "id": "task-done-03",
+        "name": "gen-fleet-task",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 10:00:00",
+        "completed_at": "2026-04-06 10:05:00",
+        "repos": "tobyj-nvidia/horde-claw-fleet",
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": "def45678",
+        "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+        "branch": "fleet/abc123-some-task",
+        "commit_sha": "def45678",
+        "push_target": "main",
+        "repo_commits": [
+            {
+                "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+                "branch": "fleet/abc123-some-task",
+                "commit_sha": "def45678",
+                "push_target": "main",
+            }
+        ],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "badge-green" in html
+    assert ">main<" in html
+    assert "badge-yellow" not in html
+
+
+def test_recent_completed_feature_branch_shows_branch_name(jinja_env):
+    """Non-fleet branches should render the actual branch name with yellow badge."""
+    task = {
+        "id": "task-done-04",
+        "name": "gen-feature-task",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 10:00:00",
+        "completed_at": "2026-04-06 10:05:00",
+        "repos": "NVIDIA-dev/some-repo",
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": "aabb1122",
+        "repo_slug": "NVIDIA-dev/some-repo",
+        "branch": "tobyj/hackathon-status-update",
+        "commit_sha": "aabb1122",
+        "push_target": "tobyj/hackathon-status-update",
+        "repo_commits": [
+            {
+                "repo_slug": "NVIDIA-dev/some-repo",
+                "branch": "tobyj/hackathon-status-update",
+                "commit_sha": "aabb1122",
+                "push_target": "tobyj/hackathon-status-update",
+            }
+        ],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "badge-yellow" in html
+    assert "tobyj/hackathon-status-update" in html
+    assert "badge-green" not in html
+
+
 # ---------------------------------------------------------------------------
 # recent_failed.html
 # ---------------------------------------------------------------------------
