@@ -20,8 +20,8 @@
         <td>{{ task.claimed_by or "—" }}</td>
         <td class="text-muted">{{ task.completed_at or "—" }}</td>
         <td>
-          {% if task.error_message %}
-          <span title="{{ task.error_message }}">{{ task.error_message[:80] }}{% if task.error_message|length > 80 %}…{% endif %}</span>
+          {% if task.error_msg %}
+          <span title="{{ task.error_msg }}">{{ task.error_msg[:80] }}{% if task.error_msg|length > 80 %}…{% endif %}</span>
           {% else %}
           <span class="text-muted">—</span>
           {% endif %}
