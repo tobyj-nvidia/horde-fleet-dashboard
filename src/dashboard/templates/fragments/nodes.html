@@ -6,6 +6,7 @@
             <th>Status</th>
             <th>Node ID</th>
             <th>Tasks</th>
+            <th>GPU</th>
             <th>Heartbeat</th>
         </tr>
     </thead>
@@ -25,6 +26,13 @@
             </td>
             <td class="mono">{{ node.node_id }}</td>
             <td>{{ node.active_tasks }} / {{ node.max_concurrent }}</td>
+            <td class="gpu-capacity">
+                {% if node.gpu_capacity and node.gpu_capacity > 0 %}
+                    <span class="gpu-badge">⬡ {{ node.gpu_capacity }} GPU</span>
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
             <td class="{% if node.is_stale %}text-warn{% endif %}">
                 {% if node.heartbeat_age_sec is not none %}
                     {% if node.heartbeat_age_sec < 60 %}

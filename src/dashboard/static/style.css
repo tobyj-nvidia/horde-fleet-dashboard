@@ -275,6 +275,7 @@ button:hover, .btn:hover {
 tr.stale td { opacity: 0.65; }
 .text-warn { color: #f87171; }
 .text-muted { color: #888; }
+.gpu-badge { color: #a78bfa; font-size: 0.85em; white-space: nowrap; }
 
 .data-table { width: 100%; }
 

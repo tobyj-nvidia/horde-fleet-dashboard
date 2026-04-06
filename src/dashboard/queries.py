@@ -47,6 +47,7 @@ async def get_nodes(conn) -> list[dict]:
                 capabilities,
                 active_tasks,
                 max_concurrent,
+                gpu_capacity,
                 last_heartbeat,
                 TIMESTAMPDIFF(SECOND, last_heartbeat, NOW()) AS heartbeat_age_sec
             FROM nodes
