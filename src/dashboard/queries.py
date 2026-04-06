@@ -424,16 +424,23 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
             slugs = d["repo_slug"].split("|")
             branches = d["branch"].split("|")
             shas = d["commit_sha"].split("|")
-            d["repo_commits"] = [
-                {
-                    "repo_slug": slug,
-                    "branch": branch,
-                    "commit_sha": sha,
-                    "push_target": "main" if branch.startswith("fleet/") else branch,
-                }
-                for slug, branch, sha in zip(slugs, branches, shas)
-            ]
-            d["push_target"] = "main" if any(b.startswith("fleet/") for b in branches) else branches[0]
+            seen = set()
+            unique_commits = []
+            for slug, branch, sha in zip(slugs, branches, shas):
+                key = (slug, branch)
+                if key not in seen:
+                    seen.add(key)
+                    unique_commits.append(
+                        {
+                            "repo_slug": slug,
+                            "branch": branch,
+                            "commit_sha": sha,
+                            "push_target": "main" if branch.startswith("fleet/") else branch,
+                        }
+                    )
+            d["repo_commits"] = unique_commits
+            all_branches = [rc["branch"] for rc in unique_commits]
+            d["push_target"] = "main" if any(b.startswith("fleet/") for b in all_branches) else all_branches[0]
         else:
             d["repo_commits"] = []
             d["push_target"] = None

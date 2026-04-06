@@ -350,6 +350,55 @@ def test_recent_completed_feature_branch_shows_branch_name(jinja_env):
     assert "badge-green" not in html
 
 
+def test_recent_completed_deduplicates_repos(jinja_env):
+    """Template renders each unique repo/branch once, not once per commit.
+
+    Simulates the before/after: 3-commit task should show repo badge once (deduplicated),
+    not three times (one per commit).
+    """
+    def make_task(repo_commits):
+        return {
+            "id": "task-done-05",
+            "name": "gen-three-commits",
+            "project": "acme",
+            "claimed_by": "node-gpu-01",
+            "started_at": "2026-04-06 11:00:00",
+            "completed_at": "2026-04-06 11:05:00",
+            "repos": "tobyj-nvidia/horde-claw-fleet",
+            "duration_seconds": 300,
+            "_duration": "5m 0s",
+            "commit_hashes": "aaa1111",
+            "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+            "branch": "main",
+            "commit_sha": "aaa11111",
+            "push_target": "main",
+            "repo_commits": repo_commits,
+        }
+
+    # Deduplicated (fixed): 1 entry for 3 commits to same repo
+    task_deduped = make_task([
+        {"repo_slug": "tobyj-nvidia/horde-claw-fleet", "branch": "main", "commit_sha": "aaa11111", "push_target": "main"},
+    ])
+    html_deduped = render(jinja_env, "fragments/recent_completed.html", tasks=[task_deduped])
+
+    # Non-deduplicated (broken): 3 entries for same repo/branch
+    task_duped = make_task([
+        {"repo_slug": "tobyj-nvidia/horde-claw-fleet", "branch": "main", "commit_sha": "aaa11111", "push_target": "main"},
+        {"repo_slug": "tobyj-nvidia/horde-claw-fleet", "branch": "main", "commit_sha": "bbb22222", "push_target": "main"},
+        {"repo_slug": "tobyj-nvidia/horde-claw-fleet", "branch": "main", "commit_sha": "ccc33333", "push_target": "main"},
+    ])
+    html_duped = render(jinja_env, "fragments/recent_completed.html", tasks=[task_duped])
+
+    # The deduplicated version should render fewer repo badge occurrences than the duplicated version
+    deduped_count = html_deduped.count("horde-claw-fleet")
+    duped_count = html_duped.count("horde-claw-fleet")
+    assert deduped_count < duped_count, (
+        f"Deduplicated HTML ({deduped_count} occurrences) should have fewer repo badges "
+        f"than duplicated HTML ({duped_count} occurrences)"
+    )
+    assert deduped_count >= 1, "Repo name must appear at least once in deduplicated output"
+
+
 # ---------------------------------------------------------------------------
 # recent_failed.html
 # ---------------------------------------------------------------------------

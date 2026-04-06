@@ -418,6 +418,91 @@ async def test_get_recent_completed_push_target(db_conn):
                 )
 
 
+def test_get_recent_completed_deduplicates_repo_branch(monkeypatch):
+    """
+    A task with 3 commits to the same repo/branch should produce exactly 1 repo_commits entry.
+    Exercises the Python post-processing deduplication in get_recent_completed().
+    """
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_recent_completed
+
+    # Simulate DB returning 3 commits for the same repo/branch
+    fake_row = {
+        "id": "task-1",
+        "name": "gen-feature",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:05:00",
+        "repos": "tobyj-nvidia/horde-claw-fleet",
+        "duration_seconds": 300,
+        "commit_hashes": "aaa1111|bbb2222|ccc3333",
+        "repo_slug": "tobyj-nvidia/horde-claw-fleet|tobyj-nvidia/horde-claw-fleet|tobyj-nvidia/horde-claw-fleet",
+        "branch": "main|main|main",
+        "commit_sha": "aaa11111|bbb22222|ccc33333",
+    }
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[fake_row])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(get_recent_completed(mock_conn))
+    assert len(result) == 1
+    repo_commits = result[0]["repo_commits"]
+    assert len(repo_commits) == 1, (
+        f"Expected 1 unique repo_commit entry, got {len(repo_commits)}: {repo_commits}"
+    )
+    assert repo_commits[0]["repo_slug"] == "tobyj-nvidia/horde-claw-fleet"
+    assert repo_commits[0]["branch"] == "main"
+
+
+def test_get_recent_completed_deduplicates_multiple_repos(monkeypatch):
+    """
+    A task with commits to two different repos (each committed twice) should
+    produce exactly 2 repo_commits entries — one per unique (repo_slug, branch).
+    """
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_recent_completed
+
+    fake_row = {
+        "id": "task-2",
+        "name": "gen-multi-repo",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:10:00",
+        "repos": "org/repo-a,org/repo-b",
+        "duration_seconds": 600,
+        "commit_hashes": "aaa1111|bbb2222|ccc3333|ddd4444",
+        "repo_slug": "org/repo-a|org/repo-b|org/repo-a|org/repo-b",
+        "branch": "main|main|main|main",
+        "commit_sha": "aaa11111|bbb22222|ccc33333|ddd44444",
+    }
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[fake_row])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(get_recent_completed(mock_conn))
+    repo_commits = result[0]["repo_commits"]
+    assert len(repo_commits) == 2, (
+        f"Expected 2 unique repo_commit entries, got {len(repo_commits)}: {repo_commits}"
+    )
+    slugs = [rc["repo_slug"] for rc in repo_commits]
+    assert "org/repo-a" in slugs
+    assert "org/repo-b" in slugs
+
+
 # ---------------------------------------------------------------------------
 # get_recent_failed
 # ---------------------------------------------------------------------------
