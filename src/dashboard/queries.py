@@ -406,7 +406,8 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
                 GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 7)) AS commit_hashes,
                 GROUP_CONCAT(tc.repo_slug ORDER BY tc.repo_slug SEPARATOR '|') AS repo_slug,
                 GROUP_CONCAT(tc.branch ORDER BY tc.repo_slug SEPARATOR '|') AS branch,
-                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 8) ORDER BY tc.repo_slug SEPARATOR '|') AS commit_sha
+                GROUP_CONCAT(SUBSTRING(tc.commit_sha, 1, 8) ORDER BY tc.repo_slug SEPARATOR '|') AS commit_sha,
+                GROUP_CONCAT(tc.target_branch ORDER BY tc.repo_slug SEPARATOR '|') AS target_branch
             FROM tasks t
             LEFT JOIN task_commits tc ON tc.task_id = t.id
             WHERE t.status = %s
@@ -424,23 +425,30 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
             slugs = d["repo_slug"].split("|")
             branches = d["branch"].split("|")
             shas = d["commit_sha"].split("|")
+            raw_targets = d["target_branch"].split("|") if d.get("target_branch") else [None] * len(slugs)
             seen = set()
             unique_commits = []
-            for slug, branch, sha in zip(slugs, branches, shas):
+            for slug, branch, sha, raw_target in zip(slugs, branches, shas, raw_targets):
                 key = (slug, branch)
                 if key not in seen:
                     seen.add(key)
+                    if raw_target and raw_target != "None":
+                        push_target = raw_target
+                    elif branch.startswith("fleet/"):
+                        push_target = "main"
+                    else:
+                        push_target = branch
                     unique_commits.append(
                         {
                             "repo_slug": slug,
                             "branch": branch,
                             "commit_sha": sha,
-                            "push_target": "main" if branch.startswith("fleet/") else branch,
+                            "push_target": push_target,
                         }
                     )
             d["repo_commits"] = unique_commits
-            all_branches = [rc["branch"] for rc in unique_commits]
-            d["push_target"] = "main" if any(b.startswith("fleet/") for b in all_branches) else all_branches[0]
+            all_targets = [rc["push_target"] for rc in unique_commits]
+            d["push_target"] = all_targets[0] if all_targets else None
         else:
             d["repo_commits"] = []
             d["push_target"] = None

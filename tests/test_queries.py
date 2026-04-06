@@ -359,7 +359,7 @@ async def test_get_node_utilization_history_columns(db_conn):
 RECENT_COMPLETED_REQUIRED_COLUMNS = {
     "id", "name", "project", "claimed_by", "started_at",
     "completed_at", "repos", "duration_seconds", "commit_hashes",
-    "repo_slug", "branch", "commit_sha", "push_target", "repo_commits",
+    "repo_slug", "branch", "commit_sha", "target_branch", "push_target", "repo_commits",
 }
 
 
@@ -418,6 +418,133 @@ async def test_get_recent_completed_push_target(db_conn):
                 )
 
 
+def _make_mock_conn(fake_row):
+    """Helper: build a mock aiomysql conn that returns fake_row from fetchall."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[fake_row])
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+    return mock_conn
+
+
+def test_get_recent_completed_target_branch_explicit():
+    """target_branch not NULL → push_target uses target_branch value."""
+    import asyncio
+    from src.dashboard.queries import get_recent_completed
+
+    fake_row = {
+        "id": "task-tb-1",
+        "name": "external-pr",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:05:00",
+        "repos": "NVIDIA-dev/some-repo",
+        "duration_seconds": 300,
+        "commit_hashes": "abc1234",
+        "repo_slug": "NVIDIA-dev/some-repo",
+        "branch": "fleet/abc1234-task",
+        "commit_sha": "abc12345",
+        "target_branch": "tobyj/feature-branch",
+    }
+    result = asyncio.get_event_loop().run_until_complete(
+        get_recent_completed(_make_mock_conn(fake_row))
+    )
+    rc = result[0]["repo_commits"][0]
+    assert rc["push_target"] == "tobyj/feature-branch", (
+        f"Expected push_target='tobyj/feature-branch', got {rc['push_target']!r}"
+    )
+
+
+def test_get_recent_completed_target_branch_main():
+    """target_branch = 'main' → push_target is 'main' (green badge)."""
+    import asyncio
+    from src.dashboard.queries import get_recent_completed
+
+    fake_row = {
+        "id": "task-tb-2",
+        "name": "main-push",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:05:00",
+        "repos": "NVIDIA-dev/some-repo",
+        "duration_seconds": 300,
+        "commit_hashes": "abc1234",
+        "repo_slug": "NVIDIA-dev/some-repo",
+        "branch": "fleet/abc1234-task",
+        "commit_sha": "abc12345",
+        "target_branch": "main",
+    }
+    result = asyncio.get_event_loop().run_until_complete(
+        get_recent_completed(_make_mock_conn(fake_row))
+    )
+    rc = result[0]["repo_commits"][0]
+    assert rc["push_target"] == "main"
+
+
+def test_get_recent_completed_target_branch_null_fleet_fallback():
+    """target_branch = NULL, branch starts with 'fleet/' → fallback to 'main'."""
+    import asyncio
+    from src.dashboard.queries import get_recent_completed
+
+    fake_row = {
+        "id": "task-tb-3",
+        "name": "legacy-fleet",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:05:00",
+        "repos": "tobyj-nvidia/horde-claw-fleet",
+        "duration_seconds": 300,
+        "commit_hashes": "abc1234",
+        "repo_slug": "tobyj-nvidia/horde-claw-fleet",
+        "branch": "fleet/abc1234-legacy",
+        "commit_sha": "abc12345",
+        "target_branch": None,
+    }
+    result = asyncio.get_event_loop().run_until_complete(
+        get_recent_completed(_make_mock_conn(fake_row))
+    )
+    rc = result[0]["repo_commits"][0]
+    assert rc["push_target"] == "main", (
+        f"NULL target_branch + fleet/ branch should fallback to 'main', got {rc['push_target']!r}"
+    )
+
+
+def test_get_recent_completed_target_branch_null_non_fleet():
+    """target_branch = NULL, non-fleet branch → push_target is the branch name."""
+    import asyncio
+    from src.dashboard.queries import get_recent_completed
+
+    fake_row = {
+        "id": "task-tb-4",
+        "name": "feature-push",
+        "project": "acme",
+        "claimed_by": "node-01",
+        "started_at": "2026-01-01 00:00:00",
+        "completed_at": "2026-01-01 00:05:00",
+        "repos": "NVIDIA-dev/some-repo",
+        "duration_seconds": 300,
+        "commit_hashes": "abc1234",
+        "repo_slug": "NVIDIA-dev/some-repo",
+        "branch": "tobyj/some-feature",
+        "commit_sha": "abc12345",
+        "target_branch": None,
+    }
+    result = asyncio.get_event_loop().run_until_complete(
+        get_recent_completed(_make_mock_conn(fake_row))
+    )
+    rc = result[0]["repo_commits"][0]
+    assert rc["push_target"] == "tobyj/some-feature", (
+        f"NULL target_branch + non-fleet branch should use branch name, got {rc['push_target']!r}"
+    )
+
+
 def test_get_recent_completed_deduplicates_repo_branch(monkeypatch):
     """
     A task with 3 commits to the same repo/branch should produce exactly 1 repo_commits entry.
@@ -441,6 +568,7 @@ def test_get_recent_completed_deduplicates_repo_branch(monkeypatch):
         "repo_slug": "tobyj-nvidia/horde-claw-fleet|tobyj-nvidia/horde-claw-fleet|tobyj-nvidia/horde-claw-fleet",
         "branch": "main|main|main",
         "commit_sha": "aaa11111|bbb22222|ccc33333",
+        "target_branch": None,
     }
 
     mock_cur = AsyncMock()
@@ -483,6 +611,7 @@ def test_get_recent_completed_deduplicates_multiple_repos(monkeypatch):
         "repo_slug": "org/repo-a|org/repo-b|org/repo-a|org/repo-b",
         "branch": "main|main|main|main",
         "commit_sha": "aaa11111|bbb22222|ccc33333|ddd44444",
+        "target_branch": None,
     }
 
     mock_cur = AsyncMock()

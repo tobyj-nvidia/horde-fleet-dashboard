@@ -216,6 +216,7 @@ def test_recent_completed_required_columns_present(jinja_env):
         "repo_slug": "acme/core",
         "branch": "main",
         "commit_sha": "abc12345",
+        "target_branch": "main",
         "push_target": "main",
         "repo_commits": [
             {
