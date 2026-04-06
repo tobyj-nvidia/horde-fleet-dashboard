@@ -80,7 +80,7 @@ async def test_get_active_tasks_columns(db_conn):
 NODE_REQUIRED_COLUMNS = {
     "node_id", "status", "capabilities", "active_tasks",
     "max_concurrent", "gpu_capacity", "last_heartbeat",
-    "heartbeat_age_sec", "is_stale",
+    "deployed_version", "heartbeat_age_sec", "is_stale",
 }
 
 

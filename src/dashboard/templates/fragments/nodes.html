@@ -5,6 +5,7 @@
         <tr>
             <th>Status</th>
             <th>Node ID</th>
+            <th>Version</th>
             <th>Tasks</th>
             <th>GPU</th>
             <th>Heartbeat</th>
@@ -15,16 +16,27 @@
         <tr class="{% if node.is_stale %}stale{% endif %}">
             <td class="status-indicator">
                 {% if node.is_stale %}
-                    <span class="indicator offline" title="Stale">✗</span>
-                {% elif node.status in ['active', 'online'] %}
-                    <span class="indicator active" title="Active">●</span>
+                    <span class="badge badge-red" title="Stale / no heartbeat">OFFLINE</span>
+                {% elif node.status == 'active' %}
+                    <span class="badge badge-green" title="Active">ACTIVE</span>
                 {% elif node.status == 'draining' %}
-                    <span class="indicator draining" title="Draining">○</span>
+                    <span class="badge badge-yellow" title="Draining">DRAINING</span>
+                {% elif node.status == 'restarting' %}
+                    <span class="badge badge-orange" title="Restarting">RESTARTING</span>
+                {% elif node.status == 'error' %}
+                    <span class="badge badge-red" title="Error">ERROR</span>
                 {% else %}
-                    <span class="indicator offline" title="{{ node.status }}">✗</span>
+                    <span class="badge badge-red" title="{{ node.status }}">{{ node.status | upper }}</span>
                 {% endif %}
             </td>
             <td class="mono">{{ node.node_id }}</td>
+            <td class="mono text-muted">
+                {% if node.deployed_version %}
+                    {{ node.deployed_version }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
             <td>{{ node.active_tasks }} / {{ node.max_concurrent }}</td>
             <td class="gpu-capacity">
                 {% if node.gpu_capacity and node.gpu_capacity > 0 %}

@@ -367,6 +367,30 @@ tr.stale td { opacity: 0.65; }
     border: 1px solid #5a4a00;
 }
 
+.badge-green {
+    background: #1a3a2a;
+    color: #4ade80;
+    border: 1px solid #2a5a3a;
+}
+
+.badge-yellow {
+    background: #2a2a00;
+    color: #facc15;
+    border: 1px solid #4a4a00;
+}
+
+.badge-orange {
+    background: #2a1a00;
+    color: #fb923c;
+    border: 1px solid #5a3a00;
+}
+
+.badge-red {
+    background: #2a1a1a;
+    color: #f87171;
+    border: 1px solid #5a2a2a;
+}
+
 /* === Recent failed task rows === */
 tr.failed-active td {
     background: rgba(248, 113, 113, 0.06);

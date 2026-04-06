@@ -115,11 +115,56 @@ def test_nodes_stale_node(jinja_env):
         "max_concurrent": 4,
         "gpu_capacity": 0,
         "last_heartbeat": "2026-04-06 08:00:00",
+        "deployed_version": None,
         "heartbeat_age_sec": 3600,
         "is_stale": True,
     }
     html = render(jinja_env, "fragments/nodes.html", nodes=[stale_node])
     assert "stale" in html
+
+
+def test_nodes_status_badges(jinja_env):
+    """Each node status value renders the correct badge color and label."""
+    statuses = [
+        ("active", "badge-green", "ACTIVE"),
+        ("draining", "badge-yellow", "DRAINING"),
+        ("restarting", "badge-orange", "RESTARTING"),
+        ("error", "badge-red", "ERROR"),
+    ]
+    for status, badge_class, label in statuses:
+        node = {
+            "node_id": f"node-{status}-01",
+            "status": status,
+            "capabilities": "",
+            "active_tasks": 0,
+            "max_concurrent": 4,
+            "gpu_capacity": 0,
+            "last_heartbeat": "2026-04-06 10:00:00",
+            "deployed_version": "deadbeef",
+            "heartbeat_age_sec": 5,
+            "is_stale": False,
+        }
+        html = render(jinja_env, "fragments/nodes.html", nodes=[node])
+        assert badge_class in html, f"Expected {badge_class!r} for status={status!r}"
+        assert label in html, f"Expected label {label!r} for status={status!r}"
+
+
+def test_nodes_deployed_version_shown(jinja_env):
+    """deployed_version (8-char SHA) appears next to each node."""
+    node = {
+        "node_id": "node-ver-01",
+        "status": "active",
+        "capabilities": "",
+        "active_tasks": 0,
+        "max_concurrent": 4,
+        "gpu_capacity": 0,
+        "last_heartbeat": "2026-04-06 10:00:00",
+        "deployed_version": "cafe1234",
+        "heartbeat_age_sec": 5,
+        "is_stale": False,
+    }
+    html = render(jinja_env, "fragments/nodes.html", nodes=[node])
+    assert "cafe1234" in html
 
 
 # ---------------------------------------------------------------------------

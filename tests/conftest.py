@@ -107,6 +107,7 @@ def sample_nodes():
             "max_concurrent": 4,
             "gpu_capacity": 1,
             "last_heartbeat": "2026-04-06 10:01:00",
+            "deployed_version": "a1b2c3d4",
             "heartbeat_age_sec": 30,
             "is_stale": False,
         }

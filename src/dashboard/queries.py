@@ -42,7 +42,7 @@ async def get_active_tasks(conn) -> list[dict]:
 
 
 async def get_nodes(conn) -> list[dict]:
-    """All nodes with heartbeat_age_sec and is_stale (>60s)."""
+    """All nodes with heartbeat_age_sec, is_stale (>60s), and deployed_version."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
@@ -54,6 +54,7 @@ async def get_nodes(conn) -> list[dict]:
                 max_concurrent,
                 gpu_capacity,
                 last_heartbeat,
+                deployed_version,
                 TIMESTAMPDIFF(SECOND, last_heartbeat, NOW()) AS heartbeat_age_sec
             FROM nodes
             ORDER BY id ASC
@@ -64,6 +65,8 @@ async def get_nodes(conn) -> list[dict]:
     for row in rows:
         d = dict(row)
         d["is_stale"] = (d["heartbeat_age_sec"] or 0) > 60
+        if d["deployed_version"]:
+            d["deployed_version"] = d["deployed_version"][:8]
         result.append(d)
     return result
 
