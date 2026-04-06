@@ -1,0 +1,14 @@
+{
+  "outcome": "success",
+  "summary": "Created a comprehensive 91-test suite for the horde-fleet-dashboard. The tests immediately caught 3 real production bugs: (1) recent_failed.html references task.error_message but the query returns error_msg — causes silent empty error column in UI; (2) get_recent_failed() uses WHERE status IN ('failed', 'dead_letter') with underscore — should be 'dead-letter' with hyphen, silently excluding all dead-letter tasks from the widget; (3) get_task() and retry_task() use WHERE task_id = %s but the tasks table PK column is 'id' — both functions are completely broken. Tests include: test_queries.py (32 tests — execute every query, verify columns), test_routes.py (15 tests — HTTP 200 for every fragment endpoint), test_templates.py (24 tests — render every template with StrictUndefined to catch column mismatches), test_schema.py (20 tests — DESCRIBE each table and compare against query references, plus static analysis). Also added Makefile with make test / make test-queries / etc., and updated pyproject.toml with [project.optional-dependencies] test and [tool.pytest.ini_options].",
+  "artifacts": [
+    "tests/__init__.py",
+    "tests/conftest.py",
+    "tests/test_queries.py",
+    "tests/test_routes.py",
+    "tests/test_templates.py",
+    "tests/test_schema.py",
+    "Makefile",
+    "pyproject.toml"
+  ]
+}
