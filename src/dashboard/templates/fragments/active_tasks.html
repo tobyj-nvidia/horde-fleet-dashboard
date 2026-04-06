@@ -25,7 +25,13 @@
           {% endif %}
         </td>
         <td>{{ task.claimed_by or "—" }}</td>
-        <td>{{ task._elapsed }}</td>
+        <td>
+          {% if task.status == 'pending' and task.is_blocked %}
+          <span class="badge badge-blocked">blocked</span>
+          {% else %}
+          {{ task._elapsed }}
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

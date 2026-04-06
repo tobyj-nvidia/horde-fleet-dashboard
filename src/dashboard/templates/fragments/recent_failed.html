@@ -1,0 +1,44 @@
+<div class="recent-failed" hx-get="/fragments/recent-failed" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if tasks %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Project</th>
+        <th>Node</th>
+        <th>Failed</th>
+        <th>Reason</th>
+        <th>Retries</th>
+        <th>Resolved</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr class="{% if task.is_resolved %}failed-resolved{% else %}failed-active{% endif %}">
+        <td class="mono">{{ task.name or task.id[:8] }}</td>
+        <td class="text-muted">{{ task.project or "—" }}</td>
+        <td>{{ task.claimed_by or "—" }}</td>
+        <td class="text-muted">{{ task.completed_at or "—" }}</td>
+        <td>
+          {% if task.error_message %}
+          <span title="{{ task.error_message }}">{{ task.error_message[:80] }}{% if task.error_message|length > 80 %}…{% endif %}</span>
+          {% else %}
+          <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>{{ task.retry_count or 0 }}/{{ task.max_retries or "?" }}</td>
+        <td>
+          {% if task.is_resolved %}
+          <span class="status-completed" title="A later run completed successfully">&#10003;</span>
+          {% else %}
+          <span class="status-failed" title="Not yet resolved">&#10007;</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No failed tasks</p>
+  {% endif %}
+</div>

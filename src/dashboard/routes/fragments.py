@@ -18,6 +18,8 @@ from dashboard.queries import (
     get_node_utilization_history,
     get_nodes,
     get_queue_counts,
+    get_recent_completed,
+    get_recent_failed,
     get_throughput,
     get_token_spend,
 )
@@ -172,6 +174,30 @@ async def fragment_node_utilization_chart(request: Request, conn=Depends(get_db)
     return templates.TemplateResponse(
         "fragments/node_utilization_chart.html",
         {"request": request, "nodes": nodes},
+    )
+
+
+@router.get("/fragments/recent-completed", response_class=HTMLResponse)
+async def fragment_recent_completed(request: Request, conn=Depends(get_db)):
+    tasks = await get_recent_completed(conn)
+    for task in tasks:
+        ds = task.get("duration_seconds")
+        if ds is not None and ds >= 0:
+            task["_duration"] = _format_elapsed(ds)
+        else:
+            task["_duration"] = "—"
+    return templates.TemplateResponse(
+        "fragments/recent_completed.html",
+        {"request": request, "tasks": tasks},
+    )
+
+
+@router.get("/fragments/recent-failed", response_class=HTMLResponse)
+async def fragment_recent_failed(request: Request, conn=Depends(get_db)):
+    tasks = await get_recent_failed(conn)
+    return templates.TemplateResponse(
+        "fragments/recent_failed.html",
+        {"request": request, "tasks": tasks},
     )
 
 

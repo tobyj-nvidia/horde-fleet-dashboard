@@ -1,0 +1,30 @@
+<div class="recent-completed" hx-get="/fragments/recent-completed" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if tasks %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Project</th>
+        <th>Node</th>
+        <th>Duration</th>
+        <th>Completed</th>
+        <th>Commits</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td class="mono">{{ task.name or task.id[:8] }}</td>
+        <td class="text-muted">{{ task.project or "—" }}</td>
+        <td>{{ task.claimed_by or "—" }}</td>
+        <td>{{ task._duration }}</td>
+        <td class="text-muted">{{ task.completed_at or "—" }}</td>
+        <td class="mono">{{ task.commit_hashes or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No completed tasks</p>
+  {% endif %}
+</div>

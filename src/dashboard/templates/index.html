@@ -64,6 +64,22 @@
     </div>
 </div>
 
+<div class="grid-two-col">
+    <div class="card" id="recent-completed-panel">
+        <h2>Recent Completed Tasks</h2>
+        <div hx-get="/fragments/recent-completed" hx-trigger="load, every 30s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card" id="recent-failed-panel">
+        <h2>Recent Failed Tasks</h2>
+        <div hx-get="/fragments/recent-failed" hx-trigger="load, every 30s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+</div>
+
 <div class="card" id="dead-letter-panel">
     <h2>Dead-Letter Queue</h2>
     <div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">

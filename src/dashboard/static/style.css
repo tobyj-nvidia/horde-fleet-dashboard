@@ -361,6 +361,21 @@ tr.stale td { opacity: 0.65; }
     border: 1px solid #2a3a5a;
 }
 
+.badge-blocked {
+    background: #2a1a00;
+    color: #facc15;
+    border: 1px solid #5a4a00;
+}
+
+/* === Recent failed task rows === */
+tr.failed-active td {
+    background: rgba(248, 113, 113, 0.06);
+}
+
+tr.failed-resolved td {
+    opacity: 0.55;
+}
+
 /* === Responsive: single column on narrow screens === */
 @media (max-width: 900px) {
     .grid-two-col,

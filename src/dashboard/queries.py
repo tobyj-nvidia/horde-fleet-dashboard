@@ -12,7 +12,7 @@ async def get_queue_counts(conn) -> dict[str, int]:
 
 
 async def get_active_tasks(conn) -> list[dict]:
-    """Tasks WHERE status IN ('claimed','running') with running_sec."""
+    """Tasks WHERE status IN ('claimed','running') with running_sec and is_blocked."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
@@ -25,7 +25,12 @@ async def get_active_tasks(conn) -> list[dict]:
                 t.started_at,
                 t.retry_count,
                 t.resource_class,
-                TIMESTAMPDIFF(SECOND, t.started_at, NOW()) AS running_sec
+                TIMESTAMPDIFF(SECOND, t.started_at, NOW()) AS running_sec,
+                EXISTS(
+                    SELECT 1 FROM task_dependencies td
+                    JOIN tasks dep ON dep.id = td.depends_on
+                    WHERE td.task_id = t.id AND dep.status != 'completed'
+                ) AS is_blocked
             FROM tasks t
             WHERE t.status IN (%s, %s)
             ORDER BY t.started_at ASC
@@ -357,6 +362,66 @@ async def get_node_utilization_history(conn) -> list[dict]:
             GROUP BY node_id, FLOOR(UNIX_TIMESTAMP(recorded_at) / 300)
             ORDER BY node_id, bucket
             """
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
+    """Recent completed tasks with duration and commit hashes."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                t.id,
+                t.name,
+                t.project,
+                t.claimed_by,
+                t.started_at,
+                t.completed_at,
+                t.repos,
+                TIMESTAMPDIFF(SECOND, t.started_at, t.completed_at) AS duration_seconds,
+                GROUP_CONCAT(SUBSTRING(tc.sha, 1, 7)) AS commit_hashes
+            FROM tasks t
+            LEFT JOIN task_commits tc ON tc.task_id = t.id
+            WHERE t.status = %s
+            GROUP BY t.id, t.name, t.project, t.claimed_by, t.started_at, t.completed_at, t.repos
+            ORDER BY t.completed_at DESC
+            LIMIT %s
+            """,
+            ("completed", limit),
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
+    """Recent failed/dead_letter tasks with resolution status."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                t.id,
+                t.name,
+                t.project,
+                t.claimed_by,
+                t.completed_at,
+                t.error_message,
+                t.retry_count,
+                t.max_retries,
+                t.status,
+                EXISTS(
+                    SELECT 1 FROM tasks t2
+                    WHERE t2.name = t.name
+                      AND t2.status = 'completed'
+                      AND t2.completed_at > t.completed_at
+                ) AS is_resolved
+            FROM tasks t
+            WHERE t.status IN ('failed', 'dead_letter')
+            ORDER BY t.completed_at DESC
+            LIMIT %s
+            """,
+            (limit,),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]
