@@ -28,7 +28,7 @@
             <td>{{ node.active_tasks }} / {{ node.max_concurrent }}</td>
             <td class="gpu-capacity">
                 {% if node.gpu_capacity and node.gpu_capacity > 0 %}
-                    <span class="gpu-badge">⬡ {{ node.gpu_capacity }} GPU</span>
+                    <span class="gpu-badge">{{ node.gpu_capacity }} GPU</span>
                 {% else %}
                     <span class="text-muted">-</span>
                 {% endif %}
