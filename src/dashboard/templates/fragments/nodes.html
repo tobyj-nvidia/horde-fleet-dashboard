@@ -19,14 +19,18 @@
                     <span class="badge badge-red" title="Stale / no heartbeat">OFFLINE</span>
                 {% elif node.status == 'active' %}
                     <span class="badge badge-green" title="Active">ACTIVE</span>
+                {% elif node.status == 'online' %}
+                    <span class="badge badge-green" title="Online">ONLINE</span>
                 {% elif node.status == 'draining' %}
                     <span class="badge badge-yellow" title="Draining">DRAINING</span>
                 {% elif node.status == 'restarting' %}
                     <span class="badge badge-orange" title="Restarting">RESTARTING</span>
+                {% elif node.status == 'offline' %}
+                    <span class="badge badge-red" title="Offline">OFFLINE</span>
                 {% elif node.status == 'error' %}
                     <span class="badge badge-red" title="Error">ERROR</span>
                 {% else %}
-                    <span class="badge badge-red" title="{{ node.status }}">{{ node.status | upper }}</span>
+                    <span class="badge badge-grey" title="{{ node.status }}">{{ node.status | upper }}</span>
                 {% endif %}
             </td>
             <td class="mono">{{ node.node_id }}</td>
