@@ -100,21 +100,35 @@ async def get_dead_letter(conn, limit: int = 20) -> list[dict]:
 
 
 async def get_throughput(conn, window_days: int = 7) -> list[dict]:
-    """Daily total/success/failure counts from task_results."""
+    """Daily throughput counts based on final task outcomes only.
+
+    Only counts tasks in a terminal state — excludes tasks still retrying
+    (status='failed' with retry_count < max_retries) so retried tasks are
+    not double-counted.
+    """
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
             SELECT
                 DATE(completed_at) AS date,
                 COUNT(*) AS total,
-                SUM(CASE WHEN outcome = %s THEN 1 ELSE 0 END) AS success,
-                SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) AS failure
-            FROM task_results
+                SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN status = %s AND retry_count >= max_retries
+                         THEN 1 ELSE 0 END) AS failure,
+                SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS dead_letter
+            FROM tasks
             WHERE completed_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+              AND (
+                status = %s
+                OR (status = %s AND retry_count >= max_retries)
+                OR status = %s
+              )
             GROUP BY DATE(completed_at)
             ORDER BY date ASC
             """,
-            ("success", "success", window_days),
+            ("completed", "failed", "dead-letter",
+             window_days,
+             "completed", "failed", "dead-letter"),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]

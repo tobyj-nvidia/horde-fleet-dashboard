@@ -149,7 +149,7 @@ async def test_get_dead_letter_status_value(db_conn):
 # get_throughput
 # ---------------------------------------------------------------------------
 
-THROUGHPUT_REQUIRED_COLUMNS = {"date", "total", "success", "failure"}
+THROUGHPUT_REQUIRED_COLUMNS = {"date", "total", "success", "failure", "dead_letter"}
 
 
 @pytest.mark.asyncio
@@ -166,6 +166,21 @@ async def test_get_throughput_columns(db_conn):
     for row in result:
         missing = THROUGHPUT_REQUIRED_COLUMNS - set(row.keys())
         assert not missing, f"Throughput row missing columns: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_get_throughput_excludes_retrying_tasks(db_conn):
+    """Throughput should only count final outcomes, not intermediate retries."""
+    result = await get_throughput(db_conn)
+    # Verify returned counts are non-negative integers and total equals
+    # success + failure + dead_letter (no uncategorised rows).
+    for row in result:
+        assert row["total"] == row["success"] + row["failure"] + row["dead_letter"], (
+            f"total ({row['total']}) != success ({row['success']}) + "
+            f"failure ({row['failure']}) + dead_letter ({row['dead_letter']}) "
+            f"on {row['date']}. This suggests the query is counting rows that "
+            "don't match any terminal-state bucket (e.g. tasks still retrying)."
+        )
 
 
 # ---------------------------------------------------------------------------
