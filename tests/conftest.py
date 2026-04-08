@@ -183,8 +183,8 @@ def sample_recent_failed():
 @pytest.fixture
 def sample_throughput():
     return [
-        {"date": "2026-04-01", "total": 10, "success": 8, "failure": 2},
-        {"date": "2026-04-02", "total": 15, "success": 14, "failure": 1},
+        {"date": "2026-04-01", "total": 10, "success": 8, "failure": 2, "dead_letter": 0},
+        {"date": "2026-04-02", "total": 15, "success": 14, "failure": 1, "dead_letter": 0},
     ]
 
 
