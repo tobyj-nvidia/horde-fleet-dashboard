@@ -8,8 +8,20 @@ Before exiting, you MUST write `.task-result.json` in this directory with:
 If `outcome` is `"failure"`, explain why in `summary`.
 **Failure to write this file means the task fails regardless of exit code.**
 
+## Required: Run Tests Before Committing
+Before committing, you MUST run the test suite and fix any failures:
+```bash
+if [ -x .venv/bin/python ]; then
+  .venv/bin/python -m pytest tests/ -q
+else
+  python3 -m pytest tests/ -q
+fi
+```
+If any tests fail, fix your changes and re-run until all tests pass.
+**Do not commit or exit until the test suite is green.**
+
 ## Required: Commit Your Changes
-When you are done, stage and commit ALL your changes **except `.task-result.json`** before exiting:
+When you are done and tests pass, stage and commit ALL your changes **except `.task-result.json`** before exiting:
 ```bash
 git add -A
 git reset HEAD .task-result.json 2>/dev/null || true
