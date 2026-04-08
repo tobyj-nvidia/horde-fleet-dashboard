@@ -41,6 +41,35 @@ async def get_active_tasks(conn) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_pending_tasks(conn, limit: int = 50) -> list[dict]:
+    """Tasks WHERE status='pending' with queue_seconds and is_blocked."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                t.id,
+                t.name,
+                t.project,
+                t.priority,
+                t.submitted_at,
+                t.status,
+                TIMESTAMPDIFF(SECOND, t.submitted_at, NOW()) AS queue_seconds,
+                EXISTS(
+                    SELECT 1 FROM task_dependencies td
+                    JOIN tasks dep ON dep.id = td.depends_on
+                    WHERE td.task_id = t.id AND dep.status != 'completed'
+                ) AS is_blocked
+            FROM tasks t
+            WHERE t.status = %s
+            ORDER BY t.priority ASC, t.submitted_at ASC
+            LIMIT %s
+            """,
+            ("pending", limit),
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def get_nodes(conn) -> list[dict]:
     """All nodes with heartbeat_age_sec, is_stale (>60s), and deployed_version."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
