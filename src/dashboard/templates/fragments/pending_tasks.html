@@ -1,0 +1,34 @@
+<div class="pending-tasks" hx-get="/fragments/pending-tasks" hx-trigger="every 5s" hx-swap="outerHTML">
+  {% if tasks %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Name</th>
+        <th>Project</th>
+        <th>Priority</th>
+        <th>Time in Queue</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td class="mono">{{ task.id[:8] }}</td>
+        <td>{{ task.name or "—" }}</td>
+        <td class="text-muted">{{ task.project or "—" }}</td>
+        <td>{{ task.priority }}</td>
+        <td>
+          {% if task.is_blocked %}
+          <span class="badge badge-blocked">blocked</span>
+          {% else %}
+          {{ task._queue_time }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No pending tasks</p>
+  {% endif %}
+</div>

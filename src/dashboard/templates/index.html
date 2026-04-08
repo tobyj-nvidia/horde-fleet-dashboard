@@ -13,6 +13,13 @@
         </div>
     </div>
 
+    <div class="card" id="pending-tasks-panel">
+        <h2>Pending Tasks</h2>
+        <div hx-get="/fragments/pending-tasks" hx-trigger="every 5s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
     <div class="card" id="node-health-panel">
         <h2>Node Health</h2>
         <div hx-get="/fragments/nodes" hx-trigger="every 10s" hx-swap="outerHTML">

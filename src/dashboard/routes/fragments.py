@@ -10,6 +10,7 @@ from dashboard.db import get_db
 from dashboard.charts import render_line_chart
 from dashboard.queries import (
     get_active_tasks,
+    get_pending_tasks,
     get_dead_letter,
     get_duration_percentiles,
     get_failure_rate,
@@ -58,6 +59,17 @@ async def fragment_active_tasks(request: Request, conn=Depends(get_db)):
         task["_elapsed"] = _format_elapsed(task.get("running_sec"))
     return templates.TemplateResponse(
         "fragments/active_tasks.html",
+        {"request": request, "tasks": tasks},
+    )
+
+
+@router.get("/fragments/pending-tasks", response_class=HTMLResponse)
+async def fragment_pending_tasks(request: Request, conn=Depends(get_db)):
+    tasks = await get_pending_tasks(conn)
+    for task in tasks:
+        task["_queue_time"] = _format_elapsed(task.get("queue_seconds"))
+    return templates.TemplateResponse(
+        "fragments/pending_tasks.html",
         {"request": request, "tasks": tasks},
     )
 

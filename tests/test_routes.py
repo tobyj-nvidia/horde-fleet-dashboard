@@ -45,6 +45,12 @@ async def test_fragment_active_tasks(client):
 
 
 @pytest.mark.asyncio
+async def test_fragment_pending_tasks(client):
+    html = await _get_ok(client, "/fragments/pending-tasks")
+    assert "pending-tasks" in html or "No pending tasks" in html
+
+
+@pytest.mark.asyncio
 async def test_fragment_nodes(client):
     html = await _get_ok(client, "/fragments/nodes")
     assert "Node ID" in html or "No nodes registered" in html
