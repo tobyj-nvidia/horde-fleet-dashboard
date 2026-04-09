@@ -3,7 +3,7 @@
   <table class="tasks-table">
     <thead>
       <tr>
-        <th>Task ID</th>
+        <th>Task</th>
         <th>Type</th>
         <th>Project</th>
         <th>Resource</th>
@@ -14,7 +14,7 @@
     <tbody>
       {% for task in tasks %}
       <tr>
-        <td class="mono">{{ task.id[:8] }}</td>
+        <td title="{{ task.name or task.id }}">{{ (task.name or task.id)[:60] }}</td>
         <td>{{ task.type }}</td>
         <td class="text-muted">{{ task.project or "—" }}</td>
         <td>
@@ -24,7 +24,7 @@
           <span class="badge badge-cpu">CPU</span>
           {% endif %}
         </td>
-        <td>{{ task.claimed_by or "—" }}</td>
+        <td>{{ (task.claimed_by or "—").replace("tobyj-fleet-1-", "") }}</td>
         <td>
           {% if task.status == 'pending' and task.is_blocked %}
           <span class="badge badge-blocked">blocked</span>

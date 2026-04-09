@@ -77,6 +77,7 @@ def test_active_tasks_empty(jinja_env):
 def test_active_tasks_blocked_badge(jinja_env):
     blocked_task = {
         "id": "task-block-0000",
+        "name": "Example task name",
         "type": "code-gen",
         "project": "acme",
         "status": "pending",

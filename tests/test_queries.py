@@ -52,7 +52,7 @@ async def test_get_queue_counts_returns_int_values(db_conn):
 # ---------------------------------------------------------------------------
 
 ACTIVE_TASK_REQUIRED_COLUMNS = {
-    "id", "type", "project", "status", "claimed_by",
+    "id", "name", "type", "project", "status", "claimed_by",
     "started_at", "retry_count", "resource_class", "running_sec", "is_blocked",
 }
 

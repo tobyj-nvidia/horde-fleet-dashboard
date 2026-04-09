@@ -18,6 +18,7 @@ async def get_active_tasks(conn) -> list[dict]:
             """
             SELECT
                 t.id,
+                t.name,
                 t.type,
                 t.project,
                 t.status,

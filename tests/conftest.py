@@ -96,6 +96,7 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         [
             {
                 'id': 'task-mock-active-001',
+                'name': 'mock-active-task',
                 'type': 'code-gen',
                 'project': 'acme',
                 'status': 'running',
