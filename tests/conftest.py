@@ -223,6 +223,21 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'mem_pct': 60.0,
         'disk_pct': 30.0,
     }], None),
+    'group_concat': ([{
+        'id': 'task-mock-done-001',
+        'name': 'gen-feature-y',
+        'project': 'acme',
+        'claimed_by': 'node-gpu-01',
+        'started_at': '2026-04-06 09:30:00',
+        'completed_at': '2026-04-06 09:35:00',
+        'repos': 'acme/core',
+        'duration_seconds': 300,
+        'commit_hashes': 'abc1234',
+        'repo_slug': 'acme/core',
+        'branch': 'fleet/abc1234-task',
+        'commit_sha': 'abc12345',
+        'target_branch': 'main',
+    }], None),
 }
 
 
