@@ -28,19 +28,6 @@
     </div>
 </div>
 
-<div class="card" id="node-metrics-panel">
-    <h2>Node Utilization</h2>
-    <div hx-get="/fragments/node-metrics" hx-trigger="every 15s" hx-swap="outerHTML">
-        Loading...
-    </div>
-</div>
-
-<div class="card" id="node-utilization-chart-panel">
-    <div hx-get="/fragments/node-utilization-chart" hx-trigger="every 60s" hx-swap="outerHTML">
-        Loading chart...
-    </div>
-</div>
-
 <div class="grid-four-col">
     <div class="card metric-panel" id="throughput-panel">
         <h2>Throughput</h2>
@@ -91,6 +78,19 @@
     <h2>Dead-Letter Queue</h2>
     <div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">
         Loading...
+    </div>
+</div>
+
+<div class="card" id="node-metrics-panel">
+    <h2>Node Utilization</h2>
+    <div hx-get="/fragments/node-metrics" hx-trigger="every 15s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
+
+<div class="card" id="node-utilization-chart-panel">
+    <div hx-get="/fragments/node-utilization-chart" hx-trigger="every 60s" hx-swap="outerHTML">
+        Loading chart...
     </div>
 </div>
 {% endblock %}
