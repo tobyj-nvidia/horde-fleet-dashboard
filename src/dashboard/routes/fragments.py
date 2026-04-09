@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from dashboard.db import get_db
 from dashboard.charts import render_line_chart
-from dashboard.recovery_metrics import get_blocked_chains
+from dashboard.recovery_metrics import get_blocked_chains, get_failure_patterns
 from dashboard.queries import (
     get_active_tasks,
     get_pending_tasks,
@@ -241,6 +241,15 @@ async def fragment_blocked_chains(request: Request, conn=Depends(get_db)):
     return templates.TemplateResponse(
         "fragments/blocked_chains.html",
         {"request": request, "chains": chains},
+    )
+
+
+@router.get("/fragments/failure-patterns", response_class=HTMLResponse)
+async def fragment_failure_patterns(request: Request, days: int = 7, conn=Depends(get_db)):
+    patterns = await get_failure_patterns(conn, days=days)
+    return templates.TemplateResponse(
+        "fragments/failure_patterns.html",
+        {"request": request, "patterns": patterns},
     )
 
 

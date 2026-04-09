@@ -177,6 +177,11 @@ async def get_blocked_chains(conn) -> list[dict]:
     return result
 
 
+async def get_failure_patterns(conn, days: int = 7) -> list[dict]:
+    """Root cause breakdown for the last `days` days — alias with a 7-day default."""
+    return await failure_patterns_by_cause(conn, days=days)
+
+
 async def project_failure_rates(conn) -> list[dict]:
     """Per-project total tasks, failed, completed, failure_rate_pct ordered by failure_rate DESC."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

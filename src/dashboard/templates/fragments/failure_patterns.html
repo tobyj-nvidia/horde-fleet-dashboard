@@ -1,0 +1,32 @@
+<div class="failure-patterns" hx-get="/fragments/failure-patterns" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if patterns %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Root Cause</th>
+        <th>Count</th>
+        <th>Auto-Retry</th>
+        <th>Recovery Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in patterns %}
+      <tr{% if p.recovery_rate_pct == 0 %} class="status-failed"{% endif %}>
+        <td class="mono">{{ p.root_cause or "—" }}</td>
+        <td>{{ p.count }}</td>
+        <td>{{ p.auto_retry_count }}</td>
+        <td>
+          {% if p.recovery_rate_pct is none %}
+          <span class="text-muted">—</span>
+          {% else %}
+          {{ p.recovery_rate_pct }}%
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No failure pattern data</p>
+  {% endif %}
+</div>
