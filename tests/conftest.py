@@ -59,12 +59,81 @@ requires_db = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
-# Database fixtures (real DB — skipped on workers)
+# Mock DB classes (used when Dolt is unavailable)
+# ---------------------------------------------------------------------------
+
+# Maps SQL pattern substrings to (fetchall_rows, fetchone_row) tuples.
+# Populated by mock data sections below.
+_MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {}
+
+
+class MockCursor:
+    """Mock aiomysql.DictCursor that pattern-matches SQL and returns sample data."""
+
+    def __init__(self):
+        self._rows = []
+        self._row = None
+
+    async def execute(self, sql, args=None):
+        sql_lower = sql.lower().strip()
+        self._rows, self._row = self._match_sql(sql_lower, args)
+
+    async def fetchall(self):
+        return self._rows
+
+    async def fetchone(self):
+        return self._row
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    def _match_sql(self, sql, args):
+        for key, value in _MOCK_QUERY_MAP.items():
+            if key in sql:
+                return value
+        # Default: COUNT(*) queries return a single zero-row so fetchone() is not None
+        if "count(*)" in sql:
+            return [], {"cnt": 0, "count(*)": 0}
+        return [], None
+
+
+class MockConnection:
+    def cursor(self, cursor_class=None):
+        return MockCursor()
+
+    async def commit(self):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+
+class _MockPoolAcquireCtx:
+    async def __aenter__(self):
+        return MockConnection()
+
+    async def __aexit__(self, *args):
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Database fixtures (real DB on hub, mock on workers)
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture(scope="session")
 async def db_pool():
-    """Session-scoped connection pool to the real Dolt database."""
+    """Session-scoped connection pool to the real Dolt database.
+
+    Skips when DB is unavailable — tests that depend on real schema data
+    (table_schemas fixture in test_schema.py) are intentionally skipped on
+    workers without a Dolt instance.
+    """
     if not _check_db_available():
         pytest.skip("Dolt database not reachable")
     pool = await aiomysql.create_pool(minsize=1, maxsize=3, **DB_CONFIG)
@@ -74,10 +143,17 @@ async def db_pool():
 
 
 @pytest_asyncio.fixture
-async def db_conn(db_pool):
-    """Per-test database connection acquired from the session pool."""
-    async with db_pool.acquire() as conn:
+async def db_conn():
+    """Per-test database connection. Yields MockConnection when DB unavailable
+    so that tests exercising query logic still run on workers."""
+    if not _check_db_available():
+        yield MockConnection()
+        return
+    pool = await aiomysql.create_pool(minsize=1, maxsize=5, **DB_CONFIG)
+    async with pool.acquire() as conn:
         yield conn
+    pool.close()
+    await pool.wait_closed()
 
 
 # ---------------------------------------------------------------------------
