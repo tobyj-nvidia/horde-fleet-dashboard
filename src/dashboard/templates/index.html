@@ -74,13 +74,6 @@
     </div>
 </div>
 
-<div class="card" id="dead-letter-panel">
-    <h2>Dead-Letter Queue</h2>
-    <div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">
-        Loading...
-    </div>
-</div>
-
 <!-- Recovery Widgets -->
 <div class="card" id="recovery-overview-panel">
     <h2>Recovery Overview</h2>
@@ -109,6 +102,13 @@
         <div hx-get="/fragments/blocked-chains" hx-trigger="load, every 30s" hx-swap="outerHTML">
             Loading...
         </div>
+    </div>
+</div>
+
+<div class="card" id="dead-letter-panel">
+    <h2>Dead-Letter Queue</h2>
+    <div hx-get="/fragments/dead-letter" hx-trigger="every 30s" hx-swap="outerHTML">
+        Loading...
     </div>
 </div>
 
