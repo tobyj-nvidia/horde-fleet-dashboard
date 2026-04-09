@@ -18,7 +18,7 @@ async def failure_patterns_by_cause(conn, days: int = 30) -> list[dict]:
                     2
                 ) AS recovery_rate_pct
             FROM task_investigations
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            WHERE investigated_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             GROUP BY root_cause
             ORDER BY count DESC
             """,
@@ -40,7 +40,7 @@ async def fragile_test_commands(conn, limit: int = 20) -> list[dict]:
             FROM task_investigations ti
             JOIN tasks t ON t.id = ti.task_id
             WHERE ti.root_cause = %s
-            ORDER BY ti.created_at DESC
+            ORDER BY ti.investigated_at DESC
             LIMIT %s
             """,
             ("fragile-test-cmd", limit),
@@ -194,7 +194,7 @@ async def get_recovery_overview(conn, days: int = 1) -> dict:
                 SUM(CASE WHEN action_taken = 'resubmitted' AND fix_successful IS NULL THEN 1 ELSE 0 END) AS pending_retries,
                 SUM(CASE WHEN action_taken = 'escalated' THEN 1 ELSE 0 END) AS escalated_count
             FROM task_investigations
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            WHERE investigated_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             """,
             (days,),
         )
@@ -226,13 +226,13 @@ async def get_active_investigations(conn) -> list[dict]:
             SELECT
                 t_orig.name AS original_task_name,
                 t_retry.status AS retry_task_status,
-                TIMESTAMPDIFF(SECOND, ti.created_at, NOW()) AS age_seconds
+                TIMESTAMPDIFF(SECOND, ti.investigated_at, NOW()) AS age_seconds
             FROM task_investigations ti
             JOIN tasks t_orig ON t_orig.id = ti.task_id
             JOIN tasks t_retry ON t_retry.id = ti.retry_task_id
             WHERE ti.action_taken = 'resubmitted'
               AND ti.fix_successful IS NULL
-            ORDER BY ti.created_at ASC
+            ORDER BY ti.investigated_at ASC
             """
         )
         rows = await cur.fetchall()
