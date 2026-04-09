@@ -75,6 +75,23 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
+    'is_resolved': (
+        [
+            {
+                'id': 'task-mock-failed-001',
+                'name': 'gen-feature-z',
+                'project': 'acme',
+                'claimed_by': 'node-gpu-01',
+                'completed_at': '2026-04-06 09:10:00',
+                'error_msg': 'RuntimeError: segfault',
+                'retry_count': 1,
+                'max_retries': 3,
+                'status': 'failed',
+                'is_resolved': False,
+            }
+        ],
+        None,
+    ),
     'where t.status in': (
         [
             {
@@ -130,6 +147,24 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'completed_at': '2026-04-06 09:05:00',
         'failure_age_sec': 3600,
     }], None),
+    'outcome !=': (
+        [
+            {'date': '2026-04-01', 'total': 10, 'failures': 2, 'failure_pct': 20.0},
+            {'date': '2026-04-02', 'total': 15, 'failures': 1, 'failure_pct': 6.67},
+        ],
+        None,
+    ),
+    'group by date(completed_at)': (
+        [
+            {'date': '2026-04-01', 'total': 10, 'success': 8, 'failure': 2, 'dead_letter': 0},
+            {'date': '2026-04-02', 'total': 15, 'success': 14, 'failure': 1, 'dead_letter': 0},
+        ],
+        None,
+    ),
+    'percent_rank': (
+        [],
+        {'p50_sec': 120, 'p95_sec': 300, 'p99_sec': 600, 'avg_sec': 150},
+    ),
 }
 
 
