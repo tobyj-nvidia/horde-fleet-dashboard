@@ -165,6 +165,36 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         [],
         {'p50_sec': 120, 'p95_sec': 300, 'p99_sec': 600, 'avg_sec': 150},
     ),
+    'total_cost_usd': ([{
+        'source': 'anthropic',
+        'model': 'claude-sonnet-4-6',
+        'total_tokens': 100000,
+        'total_cost_usd': 0.50,
+    }], None),
+    'total_usd': ([{
+        'provider': 'anthropic',
+        'model': 'claude-sonnet-4-6',
+        'total_tokens': 100000,
+        'total_usd': 0.50,
+    }], None),
+    'select count': ([], {'cnt': 1}),
+    'select * from tasks': ([{
+        'id': 'task-mock-001',
+        'type': 'code-gen',
+        'name': 'mock-task',
+        'project': 'acme',
+        'status': 'pending',
+        'claimed_by': None,
+        'started_at': None,
+        'completed_at': None,
+        'submitted_at': '2026-04-06 09:00:00',
+        'prompt': 'Generate a test',
+        'repos': 'acme/core',
+        'retry_count': 0,
+        'max_retries': 3,
+        'resource_class': 'cpu',
+        'priority': 30,
+    }], None),
 }
 
 
