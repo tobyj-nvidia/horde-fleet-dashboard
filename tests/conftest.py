@@ -195,6 +195,34 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'resource_class': 'cpu',
         'priority': 30,
     }], None),
+    'max(recorded_at) as max_recorded_at': ([{
+        'node_id': 'node-gpu-01',
+        'cpu_pct': 45.0,
+        'mem_pct': 60.0,
+        'mem_used_gb': 24.0,
+        'mem_total_gb': 40.0,
+        'gpu_pct': 80.0,
+        'gpu_mem_pct': 70.0,
+        'gpu_mem_used_gb': 16.0,
+        'gpu_mem_total_gb': 24.0,
+        'disk_pct': 30.0,
+        'recorded_at': '2026-04-06 10:01:00',
+    }], None),
+    'interval 48 hour': ([{
+        'node_id': 'node-gpu-01',
+        'bucket': '2026-04-06 10:00:00',
+        'cpu_pct': 45.0,
+        'gpu_pct': 80.0,
+    }], None),
+    'floor(unix_timestamp': ([{
+        'timestamp': '2026-04-06 10:00:00',
+        'node_id': 'node-gpu-01',
+        'cpu_pct': 45.0,
+        'gpu_pct': 80.0,
+        'gpu_mem_pct': 70.0,
+        'mem_pct': 60.0,
+        'disk_pct': 30.0,
+    }], None),
 }
 
 
