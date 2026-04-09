@@ -160,27 +160,22 @@ async def db_conn():
 # App / HTTP client fixtures (work with or without DB)
 # ---------------------------------------------------------------------------
 
+class MockPool:
+    """Mock aiomysql pool that returns MockConnections."""
+
+    def acquire(self):
+        return _MockPoolAcquireCtx()
+
+    def close(self):
+        pass
+
+    async def wait_closed(self):
+        pass
+
+
 def _make_mock_pool():
-    """Create a mock pool that returns a mock connection with a mock cursor."""
-    mock_cursor = AsyncMock()
-    mock_cursor.fetchall = AsyncMock(return_value=[])
-    mock_cursor.fetchone = AsyncMock(return_value=None)
-    mock_cursor.execute = AsyncMock()
-    mock_cursor.description = []
-
-    mock_conn = AsyncMock()
-    mock_conn.cursor = MagicMock(return_value=mock_cursor)
-    # Support 'async with conn.cursor() as cur'
-    mock_cursor.__aenter__ = AsyncMock(return_value=mock_cursor)
-    mock_cursor.__aexit__ = AsyncMock(return_value=False)
-    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_conn.__aexit__ = AsyncMock(return_value=False)
-
-    mock_pool = AsyncMock()
-    mock_pool.acquire = MagicMock(return_value=mock_conn)
-    mock_pool.close = MagicMock()
-    mock_pool.wait_closed = AsyncMock()
-    return mock_pool
+    """Create a mock pool using MockConnection/MockCursor classes."""
+    return MockPool()
 
 
 @pytest_asyncio.fixture(scope="session")
