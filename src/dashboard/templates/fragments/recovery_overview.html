@@ -1,0 +1,28 @@
+<div class="recovery-overview" hx-get="/fragments/recovery-overview" hx-trigger="every 30s" hx-swap="outerHTML">
+  <div class="stat-tiles">
+    <div class="stat-tile">
+      <span class="stat-label">Investigations (24h)</span>
+      <span class="stat-value">{{ data.total_investigations }}</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Auto-Recovery Rate</span>
+      {% if data.auto_recovery_rate is none %}
+      <span class="stat-value text-muted">—</span>
+      {% elif data.auto_recovery_rate >= 80 %}
+      <span class="stat-value stat-green">{{ data.auto_recovery_rate }}%</span>
+      {% elif data.auto_recovery_rate >= 50 %}
+      <span class="stat-value stat-yellow">{{ data.auto_recovery_rate }}%</span>
+      {% else %}
+      <span class="stat-value stat-red">{{ data.auto_recovery_rate }}%</span>
+      {% endif %}
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Pending Retries</span>
+      <span class="stat-value">{{ data.pending_retries }}</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Escalated</span>
+      <span class="stat-value{% if data.escalated_count > 0 %} stat-red{% endif %}">{{ data.escalated_count }}</span>
+    </div>
+  </div>
+</div>

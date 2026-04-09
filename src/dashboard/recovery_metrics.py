@@ -182,6 +182,42 @@ async def get_failure_patterns(conn, days: int = 7) -> list[dict]:
     return await failure_patterns_by_cause(conn, days=days)
 
 
+async def get_recovery_overview(conn, days: int = 1) -> dict:
+    """Stat card data: total investigations, auto-recovery rate, pending retries, escalated count."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                COUNT(*) AS total_investigations,
+                SUM(CASE WHEN retry_task_id IS NOT NULL AND fix_successful = 1 THEN 1 ELSE 0 END) AS successful_retries,
+                SUM(CASE WHEN retry_task_id IS NOT NULL THEN 1 ELSE 0 END) AS auto_retried_count,
+                SUM(CASE WHEN action_taken = 'resubmitted' AND fix_successful IS NULL THEN 1 ELSE 0 END) AS pending_retries,
+                SUM(CASE WHEN action_taken = 'escalated' THEN 1 ELSE 0 END) AS escalated_count
+            FROM task_investigations
+            WHERE created_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            """,
+            (days,),
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return {
+            "total_investigations": 0,
+            "auto_recovery_rate": None,
+            "pending_retries": 0,
+            "escalated_count": 0,
+        }
+    d = dict(row)
+    auto_retried = d.pop("auto_retried_count") or 0
+    successful = d.pop("successful_retries") or 0
+    if auto_retried:
+        d["auto_recovery_rate"] = round(100.0 * successful / auto_retried, 1)
+    else:
+        d["auto_recovery_rate"] = None
+    d["pending_retries"] = int(d["pending_retries"] or 0)
+    d["escalated_count"] = int(d["escalated_count"] or 0)
+    return d
+
+
 async def project_failure_rates(conn) -> list[dict]:
     """Per-project total tasks, failed, completed, failure_rate_pct ordered by failure_rate DESC."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

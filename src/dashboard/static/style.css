@@ -427,3 +427,41 @@ tr.failed-resolved td {
         gap: 0.5rem;
     }
 }
+
+/* === Recovery Overview stat tiles === */
+.stat-tiles {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.stat-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 0.75rem 1.25rem;
+    min-width: 120px;
+    flex: 1 1 120px;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 0.4rem;
+    text-align: center;
+}
+
+.stat-value {
+    font-family: monospace;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.stat-green { color: #4ade80; }
+.stat-yellow { color: #facc15; }
+.stat-red { color: #f87171; }

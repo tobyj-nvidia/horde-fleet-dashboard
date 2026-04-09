@@ -93,4 +93,11 @@
         Loading chart...
     </div>
 </div>
+
+<div class="card" id="recovery-overview-panel">
+    <h2>Recovery Overview</h2>
+    <div hx-get="/fragments/recovery-overview" hx-trigger="load, every 30s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
 {% endblock %}
