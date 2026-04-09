@@ -223,6 +223,51 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'mem_pct': 60.0,
         'disk_pct': 30.0,
     }], None),
+    # MOCK-8: DESCRIBE responses for schema tests
+    'describe `tasks`': ([
+        {'Field': f} for f in [
+            'id', 'type', 'name', 'project', 'status', 'claimed_by', 'started_at',
+            'completed_at', 'submitted_at', 'prompt', 'repos', 'retry_count',
+            'max_retries', 'resource_class', 'priority', 'claim_expires_at',
+        ]
+    ], None),
+    'describe `task_results`': ([
+        {'Field': f} for f in [
+            'task_id', 'outcome', 'summary', 'error_msg', 'completed_at', 'duration_sec',
+        ]
+    ], None),
+    'describe `task_commits`': ([
+        {'Field': f} for f in ['task_id', 'repo_slug', 'branch', 'commit_sha', 'target_branch']
+    ], None),
+    'describe `task_dependencies`': ([
+        {'Field': f} for f in ['task_id', 'depends_on']
+    ], None),
+    'describe `task_telemetry`': ([
+        {'Field': f} for f in [
+            'task_id', 'provider', 'source', 'model', 'input_tokens', 'output_tokens',
+            'estimated_cost_usd', 'recorded_at',
+        ]
+    ], None),
+    'describe `nodes`': ([
+        {'Field': f} for f in [
+            'id', 'status', 'capabilities', 'active_tasks', 'max_concurrent',
+            'gpu_capacity', 'last_heartbeat', 'deployed_version',
+        ]
+    ], None),
+    'describe `node_metrics`': ([
+        {'Field': f} for f in [
+            'node_id', 'cpu_pct', 'mem_pct', 'mem_used_gb', 'mem_total_gb',
+            'gpu_pct', 'gpu_mem_pct', 'gpu_mem_used_gb', 'gpu_mem_total_gb',
+            'disk_pct', 'recorded_at',
+        ]
+    ], None),
+    'select distinct status': ([
+        {'status': 'pending'},
+        {'status': 'running'},
+        {'status': 'completed'},
+        {'status': 'failed'},
+        {'status': 'dead-letter'},
+    ], None),
     'group_concat': ([{
         'id': 'task-mock-done-001',
         'name': 'gen-feature-y',
@@ -304,12 +349,12 @@ class _MockPoolAcquireCtx:
 async def db_pool():
     """Session-scoped connection pool to the real Dolt database.
 
-    Skips when DB is unavailable — tests that depend on real schema data
-    (table_schemas fixture in test_schema.py) are intentionally skipped on
-    workers without a Dolt instance.
+    Returns a MockPool when DB is unavailable so that schema tests still run
+    using the DESCRIBE mock responses defined in _MOCK_QUERY_MAP.
     """
     if not _check_db_available():
-        pytest.skip("Dolt database not reachable")
+        yield MockPool()
+        return
     pool = await aiomysql.create_pool(minsize=1, maxsize=3, **DB_CONFIG)
     yield pool
     pool.close()
