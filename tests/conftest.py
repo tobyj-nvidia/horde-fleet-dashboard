@@ -64,7 +64,50 @@ requires_db = pytest.mark.skipif(
 
 # Maps SQL pattern substrings to (fetchall_rows, fetchone_row) tuples.
 # Populated by mock data sections below.
-_MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {}
+_MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
+    'select status, count': (
+        [
+            {'status': 'pending', 'cnt': 5},
+            {'status': 'running', 'cnt': 2},
+            {'status': 'completed', 'cnt': 100},
+            {'status': 'failed', 'cnt': 10},
+            {'status': 'dead-letter', 'cnt': 3},
+        ],
+        None,
+    ),
+    'where t.status in': (
+        [
+            {
+                'id': 'task-mock-active-001',
+                'type': 'code-gen',
+                'project': 'acme',
+                'status': 'running',
+                'claimed_by': 'node-gpu-01',
+                'started_at': '2026-04-06 10:00:00',
+                'retry_count': 0,
+                'resource_class': 'gpu',
+                'running_sec': 120,
+                'is_blocked': False,
+            }
+        ],
+        None,
+    ),
+    'order by t.priority': (
+        [
+            {
+                'id': 'task-mock-pending-001',
+                'name': 'pending-task',
+                'project': 'acme',
+                'priority': 30,
+                'submitted_at': '2026-04-06 09:00:00',
+                'status': 'pending',
+                'queue_seconds': 3600,
+                'is_blocked': False,
+            }
+        ],
+        None,
+    ),
+}
 
 
 class MockCursor:
