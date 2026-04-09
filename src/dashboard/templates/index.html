@@ -94,6 +94,7 @@
     </div>
 </div>
 
+<!-- Recovery Widgets -->
 <div class="card" id="recovery-overview-panel">
     <h2>Recovery Overview</h2>
     <div hx-get="/fragments/recovery-overview" hx-trigger="load, every 30s" hx-swap="outerHTML">
@@ -105,6 +106,22 @@
     <h2>Active Investigations</h2>
     <div hx-get="/fragments/active-investigations" hx-trigger="load, every 30s" hx-swap="outerHTML">
         Loading...
+    </div>
+</div>
+
+<div class="grid-two-col">
+    <div class="card" id="failure-patterns-panel">
+        <h2>Failure Patterns</h2>
+        <div hx-get="/fragments/failure-patterns" hx-trigger="load, every 60s" hx-swap="outerHTML">
+            Loading...
+        </div>
+    </div>
+
+    <div class="card" id="blocked-chains-panel">
+        <h2>Blocked Dependency Chains</h2>
+        <div hx-get="/fragments/blocked-chains" hx-trigger="load, every 30s" hx-swap="outerHTML">
+            Loading...
+        </div>
     </div>
 </div>
 {% endblock %}
