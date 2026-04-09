@@ -100,4 +100,11 @@
         Loading...
     </div>
 </div>
+
+<div class="card" id="active-investigations-panel">
+    <h2>Active Investigations</h2>
+    <div hx-get="/fragments/active-investigations" hx-trigger="load, every 30s" hx-swap="outerHTML">
+        Loading...
+    </div>
+</div>
 {% endblock %}

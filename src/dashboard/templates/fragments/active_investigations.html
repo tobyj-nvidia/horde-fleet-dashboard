@@ -1,0 +1,24 @@
+<div class="active-investigations" hx-get="/fragments/active-investigations" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if investigations %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Original Task</th>
+        <th>Retry Status</th>
+        <th>Age</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inv in investigations %}
+      <tr>
+        <td class="mono">{{ inv.original_task_name or "—" }}</td>
+        <td><span class="status-{{ inv.retry_task_status }}">{{ inv.retry_task_status or "—" }}</span></td>
+        <td class="text-muted">{{ inv._age }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No active investigations</p>
+  {% endif %}
+</div>

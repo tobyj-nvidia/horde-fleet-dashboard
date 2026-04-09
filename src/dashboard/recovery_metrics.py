@@ -218,6 +218,27 @@ async def get_recovery_overview(conn, days: int = 1) -> dict:
     return d
 
 
+async def get_active_investigations(conn) -> list[dict]:
+    """In-flight retries: action_taken=resubmitted AND fix_successful IS NULL."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                t_orig.name AS original_task_name,
+                t_retry.status AS retry_task_status,
+                TIMESTAMPDIFF(SECOND, ti.created_at, NOW()) AS age_seconds
+            FROM task_investigations ti
+            JOIN tasks t_orig ON t_orig.id = ti.task_id
+            JOIN tasks t_retry ON t_retry.id = ti.retry_task_id
+            WHERE ti.action_taken = 'resubmitted'
+              AND ti.fix_successful IS NULL
+            ORDER BY ti.created_at ASC
+            """
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def project_failure_rates(conn) -> list[dict]:
     """Per-project total tasks, failed, completed, failure_rate_pct ordered by failure_rate DESC."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
