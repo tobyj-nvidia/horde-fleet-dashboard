@@ -1,8 +1,16 @@
-"""Pytest fixtures for horde-fleet-dashboard tests."""
+"""Pytest fixtures for horde-fleet-dashboard tests.
+
+Provides two modes:
+  1. WITH a real Dolt database (hub) — full integration tests
+  2. WITHOUT a database (workers) — mocked DB, route + template tests still run
+
+Detection is automatic: if the DB is unreachable, fixtures switch to mocks.
+"""
 
 import asyncio
 import os
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiomysql
 import pytest
@@ -11,7 +19,7 @@ from httpx import AsyncClient, ASGITransport
 
 
 # ---------------------------------------------------------------------------
-# Database fixtures
+# Database availability detection
 # ---------------------------------------------------------------------------
 
 DB_CONFIG = dict(
@@ -23,10 +31,42 @@ DB_CONFIG = dict(
     autocommit=True,
 )
 
+_db_available: bool | None = None
+
+
+def _check_db_available() -> bool:
+    """Synchronous check: can we connect to Dolt?"""
+    global _db_available
+    if _db_available is not None:
+        return _db_available
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(2)
+    try:
+        sock.connect((DB_CONFIG["host"], DB_CONFIG["port"]))
+        _db_available = True
+    except (ConnectionRefusedError, OSError, socket.timeout):
+        _db_available = False
+    finally:
+        sock.close()
+    return _db_available
+
+
+requires_db = pytest.mark.skipif(
+    not _check_db_available(),
+    reason="Dolt database not reachable"
+)
+
+
+# ---------------------------------------------------------------------------
+# Database fixtures (real DB — skipped on workers)
+# ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture(scope="session")
 async def db_pool():
     """Session-scoped connection pool to the real Dolt database."""
+    if not _check_db_available():
+        pytest.skip("Dolt database not reachable")
     pool = await aiomysql.create_pool(minsize=1, maxsize=3, **DB_CONFIG)
     yield pool
     pool.close()
@@ -41,24 +81,50 @@ async def db_conn(db_pool):
 
 
 # ---------------------------------------------------------------------------
-# App / HTTP client fixtures
+# App / HTTP client fixtures (work with or without DB)
 # ---------------------------------------------------------------------------
+
+def _make_mock_pool():
+    """Create a mock pool that returns a mock connection with a mock cursor."""
+    mock_cursor = AsyncMock()
+    mock_cursor.fetchall = AsyncMock(return_value=[])
+    mock_cursor.fetchone = AsyncMock(return_value=None)
+    mock_cursor.execute = AsyncMock()
+    mock_cursor.description = []
+
+    mock_conn = AsyncMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cursor)
+    # Support 'async with conn.cursor() as cur'
+    mock_cursor.__aenter__ = AsyncMock(return_value=mock_cursor)
+    mock_cursor.__aexit__ = AsyncMock(return_value=False)
+    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
+    mock_conn.__aexit__ = AsyncMock(return_value=False)
+
+    mock_pool = AsyncMock()
+    mock_pool.acquire = MagicMock(return_value=mock_conn)
+    mock_pool.close = MagicMock()
+    mock_pool.wait_closed = AsyncMock()
+    return mock_pool
+
 
 @pytest_asyncio.fixture(scope="session")
 async def app():
-    """Create the FastAPI app with a live DB pool."""
+    """Create the FastAPI app. Uses real DB on hub, mock on workers."""
     import dashboard.db as db_module
     from dashboard.main import app as _app
 
-    # Point the module pool at our test pool
-    _pool = await aiomysql.create_pool(minsize=1, maxsize=3, **DB_CONFIG)
-    db_module._pool = _pool
-
-    yield _app
-
-    _pool.close()
-    await _pool.wait_closed()
-    db_module._pool = None
+    if _check_db_available():
+        _pool = await aiomysql.create_pool(minsize=1, maxsize=3, **DB_CONFIG)
+        db_module._pool = _pool
+        yield _app
+        _pool.close()
+        await _pool.wait_closed()
+        db_module._pool = None
+    else:
+        mock_pool = _make_mock_pool()
+        db_module._pool = mock_pool
+        yield _app
+        db_module._pool = None
 
 
 @pytest_asyncio.fixture(scope="session")
