@@ -143,6 +143,40 @@ async def retry_chain_depths(conn, min_depth: int = 2) -> list[dict]:
     return results
 
 
+async def get_blocked_chains(conn) -> list[dict]:
+    """Find pending tasks blocked by dead-letter upstream dependencies.
+
+    Returns one row per dead-letter upstream task: its name, count of blocked
+    downstream tasks, and the names of the first 3 blocked tasks.
+    """
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                t_up.name AS upstream_task_name,
+                COUNT(td.downstream_task_id) AS blocked_count,
+                GROUP_CONCAT(t_down.name ORDER BY t_down.id SEPARATOR '|||') AS blocked_names_concat
+            FROM task_dependencies td
+            JOIN tasks t_up ON t_up.id = td.upstream_task_id
+            JOIN tasks t_down ON t_down.id = td.downstream_task_id
+            WHERE t_up.status = 'dead-letter'
+              AND t_down.status = 'pending'
+            GROUP BY td.upstream_task_id, t_up.name
+            ORDER BY blocked_count DESC
+            """
+        )
+        rows = await cur.fetchall()
+
+    result = []
+    for row in rows:
+        d = dict(row)
+        names_concat = d.pop("blocked_names_concat") or ""
+        all_names = [n for n in names_concat.split("|||") if n]
+        d["blocked_task_names"] = all_names[:3]
+        result.append(d)
+    return result
+
+
 async def project_failure_rates(conn) -> list[dict]:
     """Per-project total tasks, failed, completed, failure_rate_pct ordered by failure_rate DESC."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

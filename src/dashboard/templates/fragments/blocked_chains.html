@@ -1,0 +1,31 @@
+<div class="blocked-chains" hx-get="/fragments/blocked-chains" hx-trigger="every 30s" hx-swap="outerHTML">
+  {% if chains %}
+  <table class="tasks-table">
+    <thead>
+      <tr>
+        <th>Failed Upstream Task</th>
+        <th>Blocked Tasks</th>
+        <th>Blocked Task Names</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for chain in chains %}
+      <tr>
+        <td class="mono">{{ chain.upstream_task_name or "—" }}</td>
+        <td>{{ chain.blocked_count }}</td>
+        <td class="text-muted">
+          {% for name in chain.blocked_task_names %}
+          <span class="mono">{{ name }}</span>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+          {% if chain.blocked_count > chain.blocked_task_names|length %}
+          <span class="text-muted"> +{{ chain.blocked_count - chain.blocked_task_names|length }} more</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No blocked dependency chains</p>
+  {% endif %}
+</div>
