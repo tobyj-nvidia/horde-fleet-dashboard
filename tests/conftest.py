@@ -107,6 +107,29 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
+    'from nodes': ([{
+        'node_id': 'node-gpu-01',
+        'status': 'active',
+        'capabilities': 'gpu',
+        'active_tasks': 1,
+        'max_concurrent': 4,
+        'gpu_capacity': 1,
+        'last_heartbeat': '2026-04-06 10:01:00',
+        'deployed_version': 'a1b2c3d4e5f6',
+        'heartbeat_age_sec': 30,
+    }], None),
+    'left join task_results tr on t.id': ([{
+        'id': 'task-mock-dead-001',
+        'type': 'code-gen',
+        'project': 'acme',
+        'status': 'dead-letter',
+        'retry_count': 3,
+        'submitted_at': '2026-04-06 09:00:00',
+        'prompt_snippet': 'Generate a unit test for...',
+        'error_msg': 'TimeoutError: model call timed out',
+        'completed_at': '2026-04-06 09:05:00',
+        'failure_age_sec': 3600,
+    }], None),
 }
 
 
