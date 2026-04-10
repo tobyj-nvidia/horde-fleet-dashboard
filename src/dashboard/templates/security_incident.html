@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Security Incident Detail</h1>
+<div class='card'>
+  <h2>Invocation</h2>
+  <table class='data-table'>
+    <tr><td><strong>ID</strong></td><td>{{ invocation.id }}</td></tr>
+    <tr><td><strong>Task</strong></td><td>{{ invocation.task_id }}</td></tr>
+    <tr><td><strong>Worker</strong></td><td>{{ invocation.worker_node_id }}</td></tr>
+    <tr><td><strong>Tool</strong></td><td>{{ invocation.tool_name }}</td></tr>
+    <tr><td><strong>Args</strong></td><td><pre>{{ invocation.tool_args }}</pre></td></tr>
+    <tr><td><strong>Risk</strong></td><td><span class='badge {% if invocation.risk_level == "critical" %}badge-red{% elif invocation.risk_level == "high" %}badge-orange{% endif %}'>{{ invocation.risk_level }}</span></td></tr>
+    <tr><td><strong>Decision</strong></td><td>{{ invocation.decision }}</td></tr>
+    <tr><td><strong>Classifier</strong></td><td>{{ invocation.classifier_path }} / {{ invocation.classifier_rule }}</td></tr>
+    <tr><td><strong>Timestamp</strong></td><td>{{ invocation.timestamp }}</td></tr>
+  </table>
+</div>
+{% if alert %}
+<div class='card'>
+  <h2>Alert</h2>
+  <table class='data-table'>
+    <tr><td><strong>Reason</strong></td><td>{{ alert.reason }}</td></tr>
+    <tr><td><strong>Reviewed</strong></td><td>{{ alert.reviewed }}</td></tr>
+    {% if alert.reviewed_by %}<tr><td><strong>Reviewed By</strong></td><td>{{ alert.reviewed_by }}</td></tr>{% endif %}
+  </table>
+</div>
+{% endif %}
+<div class='card'>
+  <h2>Context (same task)</h2>
+  <table class='data-table'><thead><tr><th>Timestamp</th><th>Tool</th><th>Risk</th><th>Decision</th></tr></thead><tbody>
+  {% for row in context %}
+  <tr{% if row.id == invocation.id %} style='font-weight:bold'{% endif %}><td>{{ row.timestamp }}</td><td>{{ row.tool_name }}</td><td>{{ row.risk_level }}</td><td>{{ row.decision }}</td></tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

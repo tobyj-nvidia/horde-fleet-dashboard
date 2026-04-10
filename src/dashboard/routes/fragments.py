@@ -27,6 +27,7 @@ from dashboard.queries import (
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
+    get_security_incident,
     get_unreviewed_alerts,
 )
 from dashboard.sparkline import sparkline
@@ -322,3 +323,11 @@ async def fragment_blocked_ops(request: Request, conn=Depends(get_db)):
         "fragments/blocked_ops.html",
         {"request": request, "ops": ops},
     )
+
+
+@router.get('/security/incidents/{invocation_id}', response_class=HTMLResponse)
+async def security_incident_detail(request: Request, invocation_id: str, conn=Depends(get_db)):
+    incident = await get_security_incident(conn, invocation_id)
+    if incident is None:
+        return HTMLResponse('Incident not found', status_code=404)
+    return templates.TemplateResponse('security_incident.html', {'request': request, **incident})

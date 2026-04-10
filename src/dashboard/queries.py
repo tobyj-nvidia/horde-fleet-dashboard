@@ -625,6 +625,24 @@ async def get_blocked_operations(conn, limit: int = 20) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_security_incident(conn, invocation_id: str) -> dict | None:
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute('SELECT * FROM tool_invocations WHERE id = %s', (invocation_id,))
+            invocation = await cur.fetchone()
+            if not invocation:
+                return None
+            await cur.execute('SELECT * FROM security_alerts WHERE invocation_id = %s', (invocation_id,))
+            alert = await cur.fetchone()
+            await cur.execute(
+                'SELECT id, timestamp, tool_name, risk_level, decision FROM tool_invocations WHERE task_id = %s ORDER BY timestamp LIMIT 11',
+                (invocation['task_id'],))
+            context = await cur.fetchall()
+        return {'invocation': dict(invocation), 'alert': dict(alert) if alert else None, 'context': [dict(r) for r in context]}
+    except Exception:
+        return None
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

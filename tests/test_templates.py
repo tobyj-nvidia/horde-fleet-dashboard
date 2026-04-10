@@ -752,3 +752,19 @@ def test_blocked_ops_required_columns_present(jinja_env):
     html = render(jinja_env, "fragments/blocked_ops.html", ops=[minimal_row])
     assert "bash" in html
     assert "ls -la" in html
+
+
+def test_security_incident_renders(jinja_env):
+    html = render(jinja_env, 'security_incident.html',
+                  invocation={'id': 'inv-1', 'task_id': 't-1', 'worker_node_id': 'w-1',
+                              'timestamp': '2026-04-10', 'tool_name': 'Bash', 'tool_args': 'rm -rf /',
+                              'risk_level': 'critical', 'decision': 'block', 'classifier_path': 'rule',
+                              'classifier_rule': 'destructive-rm', 'classifier_output': None,
+                              'execution_result': None, 'duration_ms': 0},
+                  alert={'id': 'a-1', 'reason': 'Destructive op', 'reviewed': False,
+                         'reviewed_by': None, 'reviewed_at': None, 'created_at': '2026-04-10'},
+                  context=[{'id': 'inv-1', 'timestamp': '2026-04-10', 'tool_name': 'Bash',
+                           'risk_level': 'critical', 'decision': 'block'}])
+    assert 'critical' in html.lower()
+    assert 'Bash' in html
+    assert 'destructive-rm' in html
