@@ -588,3 +588,14 @@ def test_node_utilization_chart_renders_with_nodes(jinja_env):
     nodes = [{"node_id": "node-gpu-01", "chart_svg": "<svg></svg>"}]
     html = render(jinja_env, "fragments/node_utilization_chart.html", nodes=nodes)
     assert "node-gpu-01" in html
+
+
+# ---------------------------------------------------------------------------
+# security_overview.html
+# ---------------------------------------------------------------------------
+
+def test_security_overview_renders(jinja_env):
+    html = render(jinja_env, "fragments/security_overview.html",
+                  total_invocations=150, high_flags=8, blocks=5, block_rate_pct=3.3)
+    assert "150" in html
+    assert "Block Rate" in html

@@ -533,6 +533,26 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_security_overview(conn) -> dict:
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """SELECT COUNT(*) AS total_invocations,
+                      SUM(CASE WHEN risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS high_flags,
+                      SUM(CASE WHEN decision = 'block' THEN 1 ELSE 0 END) AS blocks
+               FROM tool_invocations
+               WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
+        )
+        row = await cur.fetchone() or {}
+    total = row.get('total_invocations', 0) or 0
+    blocks = row.get('blocks', 0) or 0
+    return {
+        'total_invocations': total,
+        'high_flags': row.get('high_flags', 0) or 0,
+        'blocks': blocks,
+        'block_rate_pct': round(blocks / total * 100, 1) if total > 0 else 0.0,
+    }
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

@@ -22,6 +22,7 @@ from dashboard.queries import (
     get_queue_counts,
     get_recent_completed,
     get_recent_failed,
+    get_security_overview,
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
@@ -295,3 +296,9 @@ async def fragment_duration(request: Request, conn=Depends(get_db)):
             "avg": fmt(data["avg_sec"]),
         },
     )
+
+
+@router.get("/fragments/security-overview", response_class=HTMLResponse)
+async def fragment_security_overview(request: Request, conn=Depends(get_db)):
+    overview = await get_security_overview(conn)
+    return templates.TemplateResponse("fragments/security_overview.html", {"request": request, **overview})
