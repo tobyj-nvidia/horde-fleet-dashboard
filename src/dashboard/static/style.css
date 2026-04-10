@@ -134,6 +134,14 @@ tr:last-child td {
     color: #b0b0d0;
 }
 
+.mono:hover {
+    text-decoration: underline;
+}
+
+.mono.task-id-cell {
+    cursor: pointer;
+}
+
 /* === Node status indicators === */
 .node-active   { color: #4ade80; }
 .node-draining { color: #facc15; }
