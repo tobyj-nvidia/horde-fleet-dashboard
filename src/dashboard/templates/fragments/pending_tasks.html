@@ -13,7 +13,7 @@
     <tbody>
       {% for task in tasks %}
       <tr>
-        <td class="mono">{{ task.id[:8] }}</td>
+        <td><span class="mono-id" title="{{ task.id }}" onclick="navigator.clipboard.writeText('{{ task.id }}')" data-tooltip="Click to copy full ID">{{ task.id[:8] }}</span></td>
         <td>{{ task.name or "—" }}</td>
         <td class="text-muted">{{ task.project or "—" }}</td>
         <td>{{ task.priority }}</td>

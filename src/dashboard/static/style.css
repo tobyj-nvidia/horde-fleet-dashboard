@@ -134,6 +134,17 @@ tr:last-child td {
     color: #b0b0d0;
 }
 
+.mono-id {
+    font-family: monospace;
+    font-size: 0.85em;
+    cursor: pointer;
+    color: #b0b0d0;
+}
+
+.mono-id:hover {
+    text-decoration: underline;
+}
+
 /* === Node status indicators === */
 .node-active   { color: #4ade80; }
 .node-draining { color: #facc15; }

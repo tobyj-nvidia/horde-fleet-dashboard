@@ -3,6 +3,7 @@
   <table class="tasks-table">
     <thead>
       <tr>
+        <th>ID</th>
         <th>Task</th>
         <th>Type</th>
         <th>Project</th>
@@ -14,6 +15,7 @@
     <tbody>
       {% for task in tasks %}
       <tr>
+        <td><span class="mono-id" title="{{ task.id }}" onclick="navigator.clipboard.writeText('{{ task.id }}')" data-tooltip="Click to copy full ID">{{ task.id[:8] }}</span></td>
         <td title="{{ task.name or task.id }}">{{ (task.name or task.id)[:60] }}</td>
         <td>{{ task.type }}</td>
         <td class="text-muted">{{ task.project or "—" }}</td>
