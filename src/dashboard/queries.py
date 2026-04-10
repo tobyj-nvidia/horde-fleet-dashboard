@@ -660,6 +660,32 @@ async def get_tool_heatmap(conn, limit: int = 20) -> list[dict]:
         return []
 
 
+async def get_worker_security_health(conn) -> list[dict]:
+    """Per-worker security stats for last 24h from audit_sessions."""
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT worker_node_id,
+                    SUM(total_invocations) AS total,
+                    SUM(block_count) AS blocks,
+                    SUM(high_count) AS highs,
+                    SUM(critical_count) AS criticals,
+                    CASE WHEN SUM(total_invocations) > 0
+                        THEN ROUND(SUM(block_count) / SUM(total_invocations) * 100, 1)
+                        ELSE 0 END AS block_rate_pct
+                FROM audit_sessions
+                WHERE pushed_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                GROUP BY worker_node_id
+                ORDER BY block_rate_pct DESC
+                """
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        return []
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

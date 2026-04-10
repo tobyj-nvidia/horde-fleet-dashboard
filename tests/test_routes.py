@@ -153,3 +153,9 @@ async def test_security_overview_route(client):
 async def test_fragment_tool_heatmap(client):
     html = await _get_ok(client, "/fragments/tool-heatmap")
     assert "tool-heatmap-panel" in html
+
+
+@pytest.mark.asyncio
+async def test_fragment_worker_security_health(client):
+    html = await _get_ok(client, "/fragments/worker-security-health")
+    assert "worker-security-health-panel" in html

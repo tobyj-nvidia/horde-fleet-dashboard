@@ -212,6 +212,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
+    'from audit_sessions': (
+        [
+            {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0},
+            {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0},
+            {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0},
+        ],
+        None,
+    ),
     'select count': ([], {'cnt': 1}),
     'select * from tasks': ([{
         'id': 'task-mock-001',
@@ -641,5 +649,35 @@ def sample_blocked_ops():
             "classifier_rule": "sensitive_path",
             "worker_node_id": "node-cpu-01",
             "timestamp": "2026-04-06 09:55:00",
+        },
+    ]
+
+
+@pytest.fixture
+def sample_worker_security_health():
+    return [
+        {
+            "worker_node_id": "node-gpu-02",
+            "total": 200,
+            "blocks": 30,
+            "highs": 15,
+            "criticals": 5,
+            "block_rate_pct": 15.0,
+        },
+        {
+            "worker_node_id": "node-gpu-01",
+            "total": 500,
+            "blocks": 25,
+            "highs": 10,
+            "criticals": 3,
+            "block_rate_pct": 5.0,
+        },
+        {
+            "worker_node_id": "node-cpu-01",
+            "total": 300,
+            "blocks": 3,
+            "highs": 2,
+            "criticals": 0,
+            "block_rate_pct": 1.0,
         },
     ]

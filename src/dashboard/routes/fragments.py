@@ -30,6 +30,7 @@ from dashboard.queries import (
     get_security_incident,
     get_tool_heatmap,
     get_unreviewed_alerts,
+    get_worker_security_health,
 )
 from dashboard.sparkline import sparkline
 
@@ -331,6 +332,15 @@ async def fragment_tool_heatmap(request: Request, conn=Depends(get_db)):
     heatmap = await get_tool_heatmap(conn)
     return templates.TemplateResponse(
         "fragments/tool_heatmap.html", {"request": request, "heatmap": heatmap}
+    )
+
+
+@router.get("/fragments/worker-security-health", response_class=HTMLResponse)
+async def fragment_worker_security_health(request: Request, conn=Depends(get_db)):
+    workers = await get_worker_security_health(conn)
+    return templates.TemplateResponse(
+        "fragments/worker_security_health.html",
+        {"request": request, "workers": workers},
     )
 
 

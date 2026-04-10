@@ -802,3 +802,84 @@ def test_security_incident_renders(jinja_env):
     assert 'critical' in html.lower()
     assert 'Bash' in html
     assert 'destructive-rm' in html
+
+
+# ---------------------------------------------------------------------------
+# worker_security_health.html
+# ---------------------------------------------------------------------------
+
+def test_worker_security_health_renders_with_data(jinja_env, sample_worker_security_health):
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=sample_worker_security_health)
+    assert "worker-security-health-panel" in html
+    assert "node-gpu-01" in html
+    assert "node-gpu-02" in html
+    assert "node-cpu-01" in html
+    assert "500" in html
+    assert "15.0%" in html
+    assert "5.0%" in html
+    assert "1.0%" in html
+
+
+def test_worker_security_health_empty(jinja_env):
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=[])
+    assert "worker-security-health-panel" in html
+    assert "No worker security data in the last 24h" in html
+
+
+def test_worker_security_health_highlight_high_block_rate(jinja_env):
+    """Rows with block_rate > fleet average * 2 should be highlighted."""
+    workers = [
+        {"worker_node_id": "node-outlier", "total": 100, "blocks": 20, "highs": 5, "criticals": 2, "block_rate_pct": 20.0},
+        {"worker_node_id": "node-normal-1", "total": 100, "blocks": 2, "highs": 1, "criticals": 0, "block_rate_pct": 2.0},
+        {"worker_node_id": "node-normal-2", "total": 100, "blocks": 3, "highs": 1, "criticals": 0, "block_rate_pct": 3.0},
+    ]
+    # Fleet average = (20+2+3)/(100+100+100)*100 = 8.33%, threshold = 16.67%
+    # node-outlier at 20% should be highlighted
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=workers)
+    assert "highlight-row" in html
+    assert "node-outlier" in html
+
+
+def test_worker_security_health_no_highlight_when_all_below_threshold(jinja_env):
+    """No rows highlighted when all are below 2x fleet average."""
+    workers = [
+        {"worker_node_id": "node-a", "total": 100, "blocks": 5, "highs": 2, "criticals": 0, "block_rate_pct": 5.0},
+        {"worker_node_id": "node-b", "total": 100, "blocks": 4, "highs": 1, "criticals": 0, "block_rate_pct": 4.0},
+    ]
+    # Fleet average = 9/200*100 = 4.5%, threshold = 9.0%
+    # Both are below threshold
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=workers)
+    assert "highlight-row" not in html
+
+
+def test_worker_security_health_has_30s_refresh(jinja_env, sample_worker_security_health):
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=sample_worker_security_health)
+    assert "every 30s" in html
+
+
+def test_worker_security_health_required_columns_present(jinja_env):
+    """Verify template only accesses columns that get_worker_security_health() returns."""
+    minimal_row = {
+        "worker_node_id": "node-01",
+        "total": 100,
+        "blocks": 5,
+        "highs": 3,
+        "criticals": 1,
+        "block_rate_pct": 5.0,
+    }
+    # Should not raise UndefinedError with StrictUndefined
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=[minimal_row])
+    assert "node-01" in html
+    assert "100" in html
+    assert "5.0%" in html
+
+
+def test_worker_security_health_table_headers(jinja_env, sample_worker_security_health):
+    """Verify all required column headers are present."""
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=sample_worker_security_health)
+    assert "Worker" in html
+    assert "Total Invocations" in html
+    assert "Blocks" in html
+    assert "High Flags" in html
+    assert "Criticals" in html
+    assert "Block Rate %" in html

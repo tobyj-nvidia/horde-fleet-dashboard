@@ -1,0 +1,33 @@
+<div id="worker-security-health-panel" hx-get="/fragments/worker-security-health" hx-trigger="every 30s" hx-swap="outerHTML">
+{% if workers %}
+{% set total_blocks = workers | sum(attribute='blocks') %}
+{% set total_invocations = workers | sum(attribute='total') %}
+{% set fleet_avg = (total_blocks / total_invocations * 100) | round(1) if total_invocations > 0 else 0 %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Worker</th>
+            <th>Total Invocations</th>
+            <th>Blocks</th>
+            <th>High Flags</th>
+            <th>Criticals</th>
+            <th>Block Rate %</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for w in workers %}
+        <tr{% if w.block_rate_pct > fleet_avg * 2 %} class="highlight-row"{% endif %}>
+            <td class="mono">{{ w.worker_node_id }}</td>
+            <td>{{ w.total }}</td>
+            <td>{{ w.blocks }}</td>
+            <td>{{ w.highs }}</td>
+            <td>{{ w.criticals }}</td>
+            <td>{{ w.block_rate_pct }}%</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No worker security data in the last 24h.</p>
+{% endif %}
+</div>
