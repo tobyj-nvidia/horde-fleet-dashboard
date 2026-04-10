@@ -1,0 +1,38 @@
+<div hx-get="/fragments/security-alerts" hx-trigger="every 10s" hx-swap="outerHTML">
+{% if alerts %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Risk</th>
+            <th>Tool</th>
+            <th>Reason</th>
+            <th>Worker</th>
+            <th>Created</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for alert in alerts %}
+        <tr>
+            <td>
+                {% if alert.risk_level == 'critical' %}
+                <span class="badge badge-red">CRITICAL</span>
+                {% else %}
+                <span class="badge badge-orange">HIGH</span>
+                {% endif %}
+            </td>
+            <td class="mono">{{ alert.tool_name }}</td>
+            <td>{{ alert.reason[:80] }}{% if alert.reason|length > 80 %}…{% endif %}</td>
+            <td class="mono">{{ alert.worker_node_id or "—" }}</td>
+            <td>{{ alert.created_at }}</td>
+            <td>
+                <button class="btn-mark-reviewed" disabled title="Mark as reviewed">Mark Reviewed</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No unreviewed alerts.</p>
+{% endif %}
+</div>

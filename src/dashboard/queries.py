@@ -553,6 +553,36 @@ async def get_security_overview(conn) -> dict:
     }
 
 
+async def get_unreviewed_alerts(conn, limit: int = 20) -> list[dict]:
+    """Unreviewed security alerts, critical first, then by created_at DESC."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                id,
+                invocation_id,
+                task_id,
+                worker_node_id,
+                risk_level,
+                tool_name,
+                tool_args,
+                classifier_rule,
+                reason,
+                reviewed,
+                reviewed_by,
+                reviewed_at,
+                created_at
+            FROM security_alerts
+            WHERE reviewed = false
+            ORDER BY FIELD(risk_level, 'critical', 'high') DESC, created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

@@ -599,3 +599,82 @@ def test_security_overview_renders(jinja_env):
                   total_invocations=150, high_flags=8, blocks=5, block_rate_pct=3.3)
     assert "150" in html
     assert "Block Rate" in html
+
+
+# ---------------------------------------------------------------------------
+# security_alerts.html
+# ---------------------------------------------------------------------------
+
+def test_security_alerts_renders_with_data(jinja_env):
+    alerts = [
+        {
+            "id": "alert-001",
+            "invocation_id": "inv-001",
+            "task_id": "task-001",
+            "worker_node_id": "node-gpu-01",
+            "risk_level": "critical",
+            "tool_name": "bash",
+            "tool_args": "rm -rf /",
+            "classifier_rule": "destructive_command",
+            "reason": "Attempted to run destructive shell command that could damage the system",
+            "reviewed": False,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "created_at": "2026-04-06 10:00:00",
+        },
+        {
+            "id": "alert-002",
+            "invocation_id": "inv-002",
+            "task_id": "task-002",
+            "worker_node_id": "node-cpu-01",
+            "risk_level": "high",
+            "tool_name": "write_file",
+            "tool_args": "/etc/passwd",
+            "classifier_rule": "sensitive_path",
+            "reason": "Write to sensitive system file",
+            "reviewed": False,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "created_at": "2026-04-06 09:55:00",
+        },
+    ]
+    html = render(jinja_env, "fragments/security_alerts.html", alerts=alerts)
+    assert "CRITICAL" in html
+    assert "HIGH" in html
+    assert "bash" in html
+    assert "write_file" in html
+    assert "node-gpu-01" in html
+    assert "node-cpu-01" in html
+    assert "Mark Reviewed" in html
+    assert "badge-red" in html
+    assert "badge-orange" in html
+
+
+def test_security_alerts_empty(jinja_env):
+    html = render(jinja_env, "fragments/security_alerts.html", alerts=[])
+    assert "No unreviewed alerts" in html
+
+
+def test_security_alerts_reason_truncated(jinja_env):
+    long_reason = "A" * 120
+    alerts = [
+        {
+            "id": "alert-003",
+            "invocation_id": "inv-003",
+            "task_id": "task-003",
+            "worker_node_id": "node-gpu-02",
+            "risk_level": "high",
+            "tool_name": "bash",
+            "tool_args": "cat secrets",
+            "classifier_rule": "secret_access",
+            "reason": long_reason,
+            "reviewed": False,
+            "reviewed_by": None,
+            "reviewed_at": None,
+            "created_at": "2026-04-06 09:50:00",
+        },
+    ]
+    html = render(jinja_env, "fragments/security_alerts.html", alerts=alerts)
+    # Reason should be truncated to 80 chars with ellipsis
+    assert "A" * 80 in html
+    assert "…" in html

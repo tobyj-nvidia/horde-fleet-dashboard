@@ -26,6 +26,7 @@ from dashboard.queries import (
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
+    get_unreviewed_alerts,
 )
 from dashboard.sparkline import sparkline
 
@@ -302,3 +303,12 @@ async def fragment_duration(request: Request, conn=Depends(get_db)):
 async def fragment_security_overview(request: Request, conn=Depends(get_db)):
     overview = await get_security_overview(conn)
     return templates.TemplateResponse("fragments/security_overview.html", {"request": request, **overview})
+
+
+@router.get("/fragments/security-alerts", response_class=HTMLResponse)
+async def fragment_security_alerts(request: Request, conn=Depends(get_db)):
+    alerts = await get_unreviewed_alerts(conn)
+    return templates.TemplateResponse(
+        "fragments/security_alerts.html",
+        {"request": request, "alerts": alerts},
+    )
