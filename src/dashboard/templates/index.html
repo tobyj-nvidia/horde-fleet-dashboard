@@ -112,6 +112,36 @@
     </div>
 </div>
 
+<!-- Security Widgets -->
+<div class="card" id="security-overview-panel">
+    <h2>Security Overview</h2>
+    <div hx-get="/fragments/security-overview" hx-trigger="load, every 30s" hx-swap="outerHTML">Loading...</div>
+</div>
+
+<div class="grid-two-col">
+    <div class="card" id="security-alerts-panel">
+        <h2>Active Security Alerts</h2>
+        <div hx-get="/fragments/security-alerts" hx-trigger="load, every 10s" hx-swap="outerHTML">Loading...</div>
+    </div>
+
+    <div class="card" id="tool-heatmap-panel">
+        <h2>Tool Invocation Heatmap</h2>
+        <div hx-get="/fragments/tool-heatmap" hx-trigger="load, every 60s" hx-swap="outerHTML">Loading...</div>
+    </div>
+</div>
+
+<div class="grid-two-col">
+    <div class="card" id="worker-security-health-panel">
+        <h2>Per-Worker Security Health</h2>
+        <div hx-get="/fragments/worker-security-health" hx-trigger="load, every 30s" hx-swap="outerHTML">Loading...</div>
+    </div>
+
+    <div class="card" id="security-timeline-panel">
+        <h2>Security Timeline</h2>
+        <div hx-get="/fragments/security-timeline" hx-trigger="load, every 60s" hx-swap="outerHTML">Loading...</div>
+    </div>
+</div>
+
 <div class="card" id="blocked-ops-panel">
     <h2>Recent Blocked Operations</h2>
     <div hx-get="/fragments/blocked-ops" hx-trigger="load, every 30s" hx-swap="outerHTML">
