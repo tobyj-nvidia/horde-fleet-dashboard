@@ -596,9 +596,12 @@ def test_node_utilization_chart_renders_with_nodes(jinja_env):
 
 def test_security_overview_renders(jinja_env):
     html = render(jinja_env, "fragments/security_overview.html",
-                  total_invocations=150, high_flags=8, blocks=5, block_rate_pct=3.3)
+                  total_invocations=150, high_flags=8, blocks=5,
+                  unreviewed_alerts=3, block_rate_pct=3.3)
     assert "150" in html
+    assert "Blocked" in html
     assert "Block Rate" in html
+    assert "security-overview-panel" in html
 
 
 # ---------------------------------------------------------------------------

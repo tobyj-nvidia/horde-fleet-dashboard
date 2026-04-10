@@ -178,6 +178,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'total_tokens': 100000,
         'total_usd': 0.50,
     }], None),
+    'from tool_invocations\nwhere': (
+        [],
+        {'total_invocations': 150, 'high_flags': 8, 'blocks': 5},
+    ),
+    'from security_alerts where reviewed': (
+        [],
+        {'unreviewed_alerts': 3},
+    ),
     'select count': ([], {'cnt': 1}),
     'select * from tasks': ([{
         'id': 'task-mock-001',

@@ -542,13 +542,19 @@ async def get_security_overview(conn) -> dict:
                FROM tool_invocations
                WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
         )
-        row = await cur.fetchone() or {}
-    total = row.get('total_invocations', 0) or 0
-    blocks = row.get('blocks', 0) or 0
+        inv = await cur.fetchone() or {}
+        await cur.execute(
+            """SELECT COUNT(*) AS unreviewed_alerts
+               FROM security_alerts WHERE reviewed = false"""
+        )
+        alerts = await cur.fetchone() or {}
+    total = inv.get('total_invocations', 0) or 0
+    blocks = inv.get('blocks', 0) or 0
     return {
         'total_invocations': total,
-        'high_flags': row.get('high_flags', 0) or 0,
+        'high_flags': inv.get('high_flags', 0) or 0,
         'blocks': blocks,
+        'unreviewed_alerts': alerts.get('unreviewed_alerts', 0) or 0,
         'block_rate_pct': round(blocks / total * 100, 1) if total > 0 else 0.0,
     }
 

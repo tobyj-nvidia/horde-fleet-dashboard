@@ -140,3 +140,10 @@ async def test_index(client):
 async def test_unknown_route_404(client):
     response = await client.get("/fragments/does-not-exist")
     assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_security_overview_route(client):
+    resp = await client.get("/fragments/security-overview")
+    assert resp.status_code == 200
+    assert "security-overview-panel" in resp.text
