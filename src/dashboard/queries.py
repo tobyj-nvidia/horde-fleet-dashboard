@@ -500,8 +500,14 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
     return result
 
 
-async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
-    """Recent failed/dead_letter tasks with resolution status."""
+async def get_recent_failed(conn, limit: int = 10, window_days: int = 7) -> list[dict]:
+    """Recent failed/dead_letter tasks with resolution status.
+
+    Only returns failures from the last *window_days* days so that stale
+    failures don't crowd out today's problems.  Results are ordered newest-
+    first using ``completed_at`` with a ``submitted_at`` fallback for rows
+    where ``completed_at`` is NULL.
+    """
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
@@ -524,10 +530,12 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
             FROM tasks t
             LEFT JOIN task_results tr ON tr.task_id = t.id
             WHERE t.status IN ('failed', 'dead-letter')
-            ORDER BY t.completed_at DESC
+              AND COALESCE(t.completed_at, t.submitted_at)
+                  >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            ORDER BY COALESCE(t.completed_at, t.submitted_at) DESC
             LIMIT %s
             """,
-            (limit,),
+            (window_days, limit),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]

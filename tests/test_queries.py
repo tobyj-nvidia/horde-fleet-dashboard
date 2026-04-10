@@ -675,12 +675,7 @@ async def test_get_recent_failed_columns(db_conn):
 
 @pytest.mark.asyncio
 async def test_get_recent_failed_status_values(db_conn):
-    """
-    The query uses WHERE t.status IN ('failed', 'dead_letter').
-    The actual status value in the DB is 'dead-letter' (hyphen).
-    This test documents the mismatch: if dead-letter tasks exist, they will
-    NOT appear because 'dead_letter' (underscore) doesn't match 'dead-letter'.
-    """
+    """All returned rows must have status 'failed' or 'dead-letter' (hyphen)."""
     result = await get_recent_failed(db_conn)
     for row in result:
         assert row["status"] in ("failed", "dead-letter"), (
@@ -688,3 +683,80 @@ async def test_get_recent_failed_status_values(db_conn):
             "Note: 'dead_letter' (underscore) in query WHERE clause won't match "
             "'dead-letter' (hyphen) status values stored in the database."
         )
+
+
+@pytest.mark.asyncio
+async def test_get_recent_failed_sorted_newest_first(db_conn):
+    """Results must be sorted by completed_at descending (newest first)."""
+    result = await get_recent_failed(db_conn, limit=50)
+    if len(result) < 2:
+        pytest.skip("Need at least 2 failed tasks to verify sort order")
+    timestamps = [row["completed_at"] for row in result if row["completed_at"] is not None]
+    for i in range(len(timestamps) - 1):
+        assert timestamps[i] >= timestamps[i + 1], (
+            f"Results not sorted newest-first: row {i} ({timestamps[i]}) "
+            f"is older than row {i + 1} ({timestamps[i + 1]})"
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_recent_failed_accepts_window_days(db_conn):
+    """get_recent_failed() accepts a window_days parameter to limit the time range."""
+    result_7d = await get_recent_failed(db_conn, window_days=7)
+    assert isinstance(result_7d, list)
+    result_1d = await get_recent_failed(db_conn, window_days=1)
+    assert isinstance(result_1d, list)
+    # Tighter window should return same or fewer results
+    assert len(result_1d) <= len(result_7d)
+
+
+def test_get_recent_failed_sort_order_with_mock():
+    """Verify the query asks for DESC sort on completed_at via mock inspection."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_recent_failed
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_recent_failed(mock_conn))
+
+    # Inspect the SQL that was passed to execute()
+    sql = mock_cur.execute.call_args[0][0].lower()
+    assert "order by" in sql, "Query must contain ORDER BY clause"
+    assert "desc" in sql, "Query must sort DESC (newest first)"
+    assert "date_sub" in sql or "interval" in sql, (
+        "Query must include a time-window filter (DATE_SUB / INTERVAL)"
+    )
+
+
+def test_get_recent_failed_time_window_in_sql():
+    """Verify the SQL includes a time-window filter so old failures are excluded."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_recent_failed
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(
+        get_recent_failed(mock_conn, window_days=3)
+    )
+
+    sql = mock_cur.execute.call_args[0][0].lower()
+    args = mock_cur.execute.call_args[0][1]
+    # The window_days value (3) should be passed as a parameter
+    assert 3 in args, (
+        f"window_days=3 should appear in query params, got {args!r}"
+    )
+    assert "interval" in sql, "Query must use INTERVAL for time windowing"
