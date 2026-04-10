@@ -686,6 +686,29 @@ async def get_worker_security_health(conn) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_security_timeline(conn, hours: int = 168) -> list[dict]:
+    """Hourly bucket counts of high/critical invocations over last N hours."""
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    DATE_FORMAT(timestamp, '%%Y-%%m-%%d %%H:00') AS hour_bucket,
+                    SUM(CASE WHEN risk_level = 'high' THEN 1 ELSE 0 END) AS high_count,
+                    SUM(CASE WHEN risk_level = 'critical' THEN 1 ELSE 0 END) AS critical_count
+                FROM tool_invocations
+                WHERE timestamp > DATE_SUB(NOW(), INTERVAL %s HOUR)
+                GROUP BY hour_bucket
+                ORDER BY hour_bucket ASC
+                """,
+                (hours,),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        return []
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

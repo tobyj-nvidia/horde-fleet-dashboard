@@ -220,6 +220,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
+    "date_format(timestamp, '%%y-%%m-%%d %%h:00')": (
+        [
+            {'hour_bucket': '2026-04-06 08:00', 'high_count': 3, 'critical_count': 1},
+            {'hour_bucket': '2026-04-06 09:00', 'high_count': 5, 'critical_count': 0},
+            {'hour_bucket': '2026-04-06 10:00', 'high_count': 0, 'critical_count': 2},
+        ],
+        None,
+    ),
     'select count': ([], {'cnt': 1}),
     'select * from tasks': ([{
         'id': 'task-mock-001',
@@ -680,4 +688,13 @@ def sample_worker_security_health():
             "criticals": 0,
             "block_rate_pct": 1.0,
         },
+    ]
+
+
+@pytest.fixture
+def sample_security_timeline():
+    return [
+        {"hour_bucket": "2026-04-06 08:00", "high_count": 3, "critical_count": 1},
+        {"hour_bucket": "2026-04-06 09:00", "high_count": 5, "critical_count": 0},
+        {"hour_bucket": "2026-04-06 10:00", "high_count": 0, "critical_count": 2},
     ]

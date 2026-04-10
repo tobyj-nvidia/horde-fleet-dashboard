@@ -24,6 +24,7 @@ from dashboard.queries import (
     get_recent_completed,
     get_recent_failed,
     get_security_overview,
+    get_security_timeline,
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
@@ -341,6 +342,22 @@ async def fragment_worker_security_health(request: Request, conn=Depends(get_db)
     return templates.TemplateResponse(
         "fragments/worker_security_health.html",
         {"request": request, "workers": workers},
+    )
+
+
+@router.get("/fragments/security-timeline", response_class=HTMLResponse)
+async def fragment_security_timeline(request: Request, conn=Depends(get_db)):
+    timeline = await get_security_timeline(conn)
+    high_spark = sparkline([row["high_count"] for row in timeline]) if timeline else ""
+    critical_spark = sparkline([row["critical_count"] for row in timeline]) if timeline else ""
+    return templates.TemplateResponse(
+        "fragments/security_timeline.html",
+        {
+            "request": request,
+            "timeline": timeline,
+            "high_spark": high_spark,
+            "critical_spark": critical_spark,
+        },
     )
 
 

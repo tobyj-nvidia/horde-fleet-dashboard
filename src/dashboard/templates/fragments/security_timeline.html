@@ -1,0 +1,33 @@
+<div id="security-timeline-panel" hx-get="/fragments/security-timeline" hx-trigger="every 60s" hx-swap="outerHTML">
+<h3>Security Timeline <small>(last 7 days, hourly)</small></h3>
+{% if timeline %}
+<div class="sparkline-row">
+  <span class="sparkline-label">High:</span>
+  <span class="sparkline" title="High-risk invocations per hour">{{ high_spark }}</span>
+</div>
+<div class="sparkline-row">
+  <span class="sparkline-label">Critical:</span>
+  <span class="sparkline" title="Critical-risk invocations per hour">{{ critical_spark }}</span>
+</div>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Hour</th>
+            <th>High</th>
+            <th>Critical</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in timeline %}
+        <tr>
+            <td class="mono">{{ row.hour_bucket }}</td>
+            <td class="{% if row.high_count > 0 %}warning{% endif %}">{{ row.high_count }}</td>
+            <td class="{% if row.critical_count > 0 %}failure{% endif %}">{{ row.critical_count }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No high/critical invocations in the last 7 days.</p>
+{% endif %}
+</div>

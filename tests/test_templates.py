@@ -883,3 +883,99 @@ def test_worker_security_health_table_headers(jinja_env, sample_worker_security_
     assert "High Flags" in html
     assert "Criticals" in html
     assert "Block Rate %" in html
+
+
+# ---------------------------------------------------------------------------
+# security_timeline.html
+# ---------------------------------------------------------------------------
+
+def test_security_timeline_renders_with_data(jinja_env, sample_security_timeline):
+    from dashboard.sparkline import sparkline
+    high_spark = sparkline([r["high_count"] for r in sample_security_timeline])
+    critical_spark = sparkline([r["critical_count"] for r in sample_security_timeline])
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=sample_security_timeline,
+        high_spark=high_spark,
+        critical_spark=critical_spark,
+    )
+    assert "security-timeline-panel" in html
+    assert "2026-04-06 08:00" in html
+    assert "2026-04-06 09:00" in html
+    assert "2026-04-06 10:00" in html
+    assert "High" in html
+    assert "Critical" in html
+
+
+def test_security_timeline_empty(jinja_env):
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=[],
+        high_spark="",
+        critical_spark="",
+    )
+    assert "security-timeline-panel" in html
+    assert "No high/critical invocations in the last 7 days" in html
+
+
+def test_security_timeline_has_60s_refresh(jinja_env, sample_security_timeline):
+    from dashboard.sparkline import sparkline
+    high_spark = sparkline([r["high_count"] for r in sample_security_timeline])
+    critical_spark = sparkline([r["critical_count"] for r in sample_security_timeline])
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=sample_security_timeline,
+        high_spark=high_spark,
+        critical_spark=critical_spark,
+    )
+    assert "every 60s" in html
+
+
+def test_security_timeline_sparklines_present(jinja_env, sample_security_timeline):
+    from dashboard.sparkline import sparkline
+    high_spark = sparkline([r["high_count"] for r in sample_security_timeline])
+    critical_spark = sparkline([r["critical_count"] for r in sample_security_timeline])
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=sample_security_timeline,
+        high_spark=high_spark,
+        critical_spark=critical_spark,
+    )
+    assert high_spark in html
+    assert critical_spark in html
+
+
+def test_security_timeline_highlights_nonzero_counts(jinja_env):
+    """Non-zero high counts get 'warning' class, non-zero critical counts get 'failure' class."""
+    from dashboard.sparkline import sparkline
+    timeline = [
+        {"hour_bucket": "2026-04-06 08:00", "high_count": 3, "critical_count": 0},
+        {"hour_bucket": "2026-04-06 09:00", "high_count": 0, "critical_count": 2},
+    ]
+    high_spark = sparkline([r["high_count"] for r in timeline])
+    critical_spark = sparkline([r["critical_count"] for r in timeline])
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=timeline,
+        high_spark=high_spark,
+        critical_spark=critical_spark,
+    )
+    assert "warning" in html
+    assert "failure" in html
+
+
+def test_security_timeline_required_columns_present(jinja_env):
+    """Verify template only accesses columns that get_security_timeline() returns."""
+    from dashboard.sparkline import sparkline
+    minimal_row = {
+        "hour_bucket": "2026-04-06 12:00",
+        "high_count": 1,
+        "critical_count": 0,
+    }
+    html = render(
+        jinja_env, "fragments/security_timeline.html",
+        timeline=[minimal_row],
+        high_spark=sparkline([1]),
+        critical_spark=sparkline([0]),
+    )
+    assert "2026-04-06 12:00" in html
