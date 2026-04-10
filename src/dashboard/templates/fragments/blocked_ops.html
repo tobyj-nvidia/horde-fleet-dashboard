@@ -1,0 +1,28 @@
+<div hx-get="/fragments/blocked-ops" hx-trigger="every 30s" hx-swap="outerHTML">
+{% if ops %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Tool</th>
+            <th>Command</th>
+            <th>Classifier Rule</th>
+            <th>Worker</th>
+            <th>Timestamp</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for op in ops %}
+        <tr>
+            <td class="mono">{{ op.tool_name }}</td>
+            <td class="mono">{{ op.tool_args[:80] }}{% if op.tool_args|length > 80 %}…{% endif %}</td>
+            <td>{{ op.classifier_rule }}</td>
+            <td class="mono">{{ op.worker_node_id or "—" }}</td>
+            <td>{{ op.timestamp }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No blocked operations in the last 24h.</p>
+{% endif %}
+</div>

@@ -182,6 +182,25 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         [],
         {'total_invocations': 150, 'high_flags': 8, 'blocks': 5},
     ),
+    "decision = %s": (
+        [
+            {
+                'tool_name': 'bash',
+                'tool_args': 'rm -rf / --no-preserve-root',
+                'classifier_rule': 'destructive_command',
+                'worker_node_id': 'node-gpu-01',
+                'timestamp': '2026-04-06 10:05:00',
+            },
+            {
+                'tool_name': 'write_file',
+                'tool_args': '/etc/shadow with malicious content that is very long and should be truncated in the UI display',
+                'classifier_rule': 'sensitive_path',
+                'worker_node_id': 'node-cpu-01',
+                'timestamp': '2026-04-06 09:55:00',
+            },
+        ],
+        None,
+    ),
     'from security_alerts where reviewed': (
         [],
         {'unreviewed_alerts': 3},
@@ -596,4 +615,24 @@ def sample_node_metrics():
             "cpu_spark": "",
             "gpu_spark": "",
         }
+    ]
+
+
+@pytest.fixture
+def sample_blocked_ops():
+    return [
+        {
+            "tool_name": "bash",
+            "tool_args": "rm -rf / --no-preserve-root",
+            "classifier_rule": "destructive_command",
+            "worker_node_id": "node-gpu-01",
+            "timestamp": "2026-04-06 10:05:00",
+        },
+        {
+            "tool_name": "write_file",
+            "tool_args": "/etc/shadow with malicious content that is very long and should be truncated in the UI display",
+            "classifier_rule": "sensitive_path",
+            "worker_node_id": "node-cpu-01",
+            "timestamp": "2026-04-06 09:55:00",
+        },
     ]

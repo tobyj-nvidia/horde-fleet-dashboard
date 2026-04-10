@@ -11,6 +11,7 @@ from dashboard.charts import render_line_chart
 from dashboard.recovery_metrics import get_active_investigations, get_blocked_chains, get_failure_patterns, get_recovery_overview
 from dashboard.queries import (
     get_active_tasks,
+    get_blocked_operations,
     get_pending_tasks,
     get_dead_letter,
     get_duration_percentiles,
@@ -311,4 +312,13 @@ async def fragment_security_alerts(request: Request, conn=Depends(get_db)):
     return templates.TemplateResponse(
         "fragments/security_alerts.html",
         {"request": request, "alerts": alerts},
+    )
+
+
+@router.get("/fragments/blocked-ops", response_class=HTMLResponse)
+async def fragment_blocked_ops(request: Request, conn=Depends(get_db)):
+    ops = await get_blocked_operations(conn)
+    return templates.TemplateResponse(
+        "fragments/blocked_ops.html",
+        {"request": request, "ops": ops},
     )

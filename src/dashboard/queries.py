@@ -589,6 +589,29 @@ async def get_unreviewed_alerts(conn, limit: int = 20) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+async def get_blocked_operations(conn, limit: int = 20) -> list[dict]:
+    """Last N blocked tool invocations from the last 24h."""
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT
+                tool_name,
+                tool_args,
+                classifier_rule,
+                worker_node_id,
+                timestamp
+            FROM tool_invocations
+            WHERE decision = %s
+              AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            ORDER BY timestamp DESC
+            LIMIT %s
+            """,
+            ("block", limit),
+        )
+        rows = await cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

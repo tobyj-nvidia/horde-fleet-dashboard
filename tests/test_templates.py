@@ -681,3 +681,74 @@ def test_security_alerts_reason_truncated(jinja_env):
     # Reason should be truncated to 80 chars with ellipsis
     assert "A" * 80 in html
     assert "…" in html
+
+
+# ---------------------------------------------------------------------------
+# blocked_ops.html
+# ---------------------------------------------------------------------------
+
+def test_blocked_ops_renders_with_data(jinja_env, sample_blocked_ops):
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=sample_blocked_ops)
+    assert "bash" in html
+    assert "write_file" in html
+    assert "destructive_command" in html
+    assert "sensitive_path" in html
+    assert "node-gpu-01" in html
+    assert "node-cpu-01" in html
+
+
+def test_blocked_ops_empty(jinja_env):
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=[])
+    assert "No blocked operations in the last 24h" in html
+
+
+def test_blocked_ops_truncates_long_tool_args(jinja_env):
+    long_args = "x" * 120
+    ops = [
+        {
+            "tool_name": "bash",
+            "tool_args": long_args,
+            "classifier_rule": "some_rule",
+            "worker_node_id": "node-01",
+            "timestamp": "2026-04-06 10:00:00",
+        },
+    ]
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=ops)
+    # First 80 chars should be present
+    assert "x" * 80 in html
+    # Ellipsis should appear for truncation
+    assert "…" in html
+
+
+def test_blocked_ops_missing_worker_shows_dash(jinja_env):
+    ops = [
+        {
+            "tool_name": "bash",
+            "tool_args": "echo hello",
+            "classifier_rule": "test_rule",
+            "worker_node_id": None,
+            "timestamp": "2026-04-06 10:00:00",
+        },
+    ]
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=ops)
+    assert "—" in html
+
+
+def test_blocked_ops_has_30s_refresh(jinja_env, sample_blocked_ops):
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=sample_blocked_ops)
+    assert "every 30s" in html
+
+
+def test_blocked_ops_required_columns_present(jinja_env):
+    """Verify template only accesses columns that get_blocked_operations() returns."""
+    minimal_row = {
+        "tool_name": "bash",
+        "tool_args": "ls -la",
+        "classifier_rule": "read_command",
+        "worker_node_id": "node-01",
+        "timestamp": "2026-04-06 10:00:00",
+    }
+    # Should not raise UndefinedError with StrictUndefined
+    html = render(jinja_env, "fragments/blocked_ops.html", ops=[minimal_row])
+    assert "bash" in html
+    assert "ls -la" in html
