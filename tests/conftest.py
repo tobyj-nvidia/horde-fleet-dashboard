@@ -205,6 +205,13 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         [],
         {'unreviewed_alerts': 3},
     ),
+    'classifier_rule is not null': (
+        [
+            {'classifier_rule': 'destructive_command', 'tool_name': 'bash', 'risk_level': 'critical', 'hit_count': 42},
+            {'classifier_rule': 'sensitive_path', 'tool_name': 'write_file', 'risk_level': 'high', 'hit_count': 17},
+        ],
+        None,
+    ),
     'select count': ([], {'cnt': 1}),
     'select * from tasks': ([{
         'id': 'task-mock-001',

@@ -1,0 +1,34 @@
+<div id="tool-heatmap-panel" hx-get="/fragments/tool-heatmap" hx-trigger="every 60s" hx-swap="outerHTML">
+{% if heatmap %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Classifier Rule</th>
+            <th>Tool</th>
+            <th>Risk Level</th>
+            <th>Hit Count</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in heatmap %}
+        <tr>
+            <td>{{ row.classifier_rule }}</td>
+            <td class="mono">{{ row.tool_name }}</td>
+            <td>
+                {% if row.risk_level == 'critical' %}
+                    <span class="badge badge-red">CRITICAL</span>
+                {% elif row.risk_level == 'high' %}
+                    <span class="badge badge-orange">HIGH</span>
+                {% else %}
+                    <span class="badge">{{ row.risk_level | upper }}</span>
+                {% endif %}
+            </td>
+            <td>{{ row.hit_count }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No invocations in the last 7 days.</p>
+{% endif %}
+</div>

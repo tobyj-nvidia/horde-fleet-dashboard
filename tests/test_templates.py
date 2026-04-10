@@ -754,6 +754,40 @@ def test_blocked_ops_required_columns_present(jinja_env):
     assert "ls -la" in html
 
 
+# ---------------------------------------------------------------------------
+# tool_heatmap.html
+# ---------------------------------------------------------------------------
+
+def test_tool_heatmap_renders_with_data(jinja_env):
+    heatmap = [
+        {"classifier_rule": "destructive_command", "tool_name": "bash", "risk_level": "critical", "hit_count": 42},
+        {"classifier_rule": "sensitive_path", "tool_name": "write_file", "risk_level": "high", "hit_count": 17},
+        {"classifier_rule": "read_command", "tool_name": "read_file", "risk_level": "low", "hit_count": 5},
+    ]
+    html = render(jinja_env, "fragments/tool_heatmap.html", heatmap=heatmap)
+    assert "tool-heatmap-panel" in html
+    assert "destructive_command" in html
+    assert "bash" in html
+    assert "CRITICAL" in html
+    assert "badge-red" in html
+    assert "42" in html
+    assert "sensitive_path" in html
+    assert "HIGH" in html
+    assert "badge-orange" in html
+    assert "17" in html
+
+
+def test_tool_heatmap_empty(jinja_env):
+    html = render(jinja_env, "fragments/tool_heatmap.html", heatmap=[])
+    assert "tool-heatmap-panel" in html
+    assert "No invocations in the last 7 days" in html
+
+
+def test_tool_heatmap_has_60s_refresh(jinja_env):
+    html = render(jinja_env, "fragments/tool_heatmap.html", heatmap=[])
+    assert "every 60s" in html
+
+
 def test_security_incident_renders(jinja_env):
     html = render(jinja_env, 'security_incident.html',
                   invocation={'id': 'inv-1', 'task_id': 't-1', 'worker_node_id': 'w-1',

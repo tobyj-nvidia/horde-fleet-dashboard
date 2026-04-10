@@ -28,6 +28,7 @@ from dashboard.queries import (
     get_token_spend,
     get_token_spend_summary,
     get_security_incident,
+    get_tool_heatmap,
     get_unreviewed_alerts,
 )
 from dashboard.sparkline import sparkline
@@ -322,6 +323,14 @@ async def fragment_blocked_ops(request: Request, conn=Depends(get_db)):
     return templates.TemplateResponse(
         "fragments/blocked_ops.html",
         {"request": request, "ops": ops},
+    )
+
+
+@router.get("/fragments/tool-heatmap", response_class=HTMLResponse)
+async def fragment_tool_heatmap(request: Request, conn=Depends(get_db)):
+    heatmap = await get_tool_heatmap(conn)
+    return templates.TemplateResponse(
+        "fragments/tool_heatmap.html", {"request": request, "heatmap": heatmap}
     )
 
 

@@ -643,6 +643,23 @@ async def get_security_incident(conn, invocation_id: str) -> dict | None:
         return None
 
 
+async def get_tool_heatmap(conn, limit: int = 20) -> list[dict]:
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """SELECT classifier_rule, tool_name, risk_level, COUNT(*) as hit_count
+                   FROM tool_invocations
+                   WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                   AND classifier_rule IS NOT NULL
+                   GROUP BY classifier_rule, tool_name, risk_level
+                   ORDER BY hit_count DESC LIMIT %s""",
+                (limit,),
+            )
+            return [dict(r) for r in await cur.fetchall()]
+    except Exception:
+        return []
+
+
 async def retry_task(conn, task_id: str) -> bool:
     """SET status='pending' WHERE status='dead-letter'. Returns True if updated."""
     async with conn.cursor(aiomysql.DictCursor) as cur:

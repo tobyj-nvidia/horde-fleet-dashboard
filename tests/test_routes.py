@@ -147,3 +147,9 @@ async def test_security_overview_route(client):
     resp = await client.get("/fragments/security-overview")
     assert resp.status_code == 200
     assert "security-overview-panel" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_fragment_tool_heatmap(client):
+    html = await _get_ok(client, "/fragments/tool-heatmap")
+    assert "tool-heatmap-panel" in html
