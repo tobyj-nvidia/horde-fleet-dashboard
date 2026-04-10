@@ -534,20 +534,25 @@ async def get_recent_failed(conn, limit: int = 10) -> list[dict]:
 
 
 async def get_security_overview(conn) -> dict:
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            """SELECT COUNT(*) AS total_invocations,
-                      SUM(CASE WHEN risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS high_flags,
-                      SUM(CASE WHEN decision = 'block' THEN 1 ELSE 0 END) AS blocks
-               FROM tool_invocations
-               WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
-        )
-        inv = await cur.fetchone() or {}
-        await cur.execute(
-            """SELECT COUNT(*) AS unreviewed_alerts
-               FROM security_alerts WHERE reviewed = false"""
-        )
-        alerts = await cur.fetchone() or {}
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """SELECT COUNT(*) AS total_invocations,
+                          SUM(CASE WHEN risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS high_flags,
+                          SUM(CASE WHEN decision = 'block' THEN 1 ELSE 0 END) AS blocks
+                   FROM tool_invocations
+                   WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
+            )
+            inv = await cur.fetchone() or {}
+            await cur.execute(
+                """SELECT COUNT(*) AS unreviewed_alerts
+                   FROM security_alerts WHERE reviewed = false"""
+            )
+            alerts = await cur.fetchone() or {}
+    except Exception:
+        # Security tables may not exist yet
+        inv = {}
+        alerts = {}
     total = inv.get('total_invocations', 0) or 0
     blocks = inv.get('blocks', 0) or 0
     return {
@@ -561,54 +566,62 @@ async def get_security_overview(conn) -> dict:
 
 async def get_unreviewed_alerts(conn, limit: int = 20) -> list[dict]:
     """Unreviewed security alerts, critical first, then by created_at DESC."""
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            """
-            SELECT
-                id,
-                invocation_id,
-                task_id,
-                worker_node_id,
-                risk_level,
-                tool_name,
-                tool_args,
-                classifier_rule,
-                reason,
-                reviewed,
-                reviewed_by,
-                reviewed_at,
-                created_at
-            FROM security_alerts
-            WHERE reviewed = false
-            ORDER BY FIELD(risk_level, 'critical', 'high') DESC, created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
-        )
-        rows = await cur.fetchall()
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    id,
+                    invocation_id,
+                    task_id,
+                    worker_node_id,
+                    risk_level,
+                    tool_name,
+                    tool_args,
+                    classifier_rule,
+                    reason,
+                    reviewed,
+                    reviewed_by,
+                    reviewed_at,
+                    created_at
+                FROM security_alerts
+                WHERE reviewed = false
+                ORDER BY FIELD(risk_level, 'critical', 'high') DESC, created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        # Security tables may not exist yet
+        return []
     return [dict(row) for row in rows]
 
 
 async def get_blocked_operations(conn, limit: int = 20) -> list[dict]:
     """Last N blocked tool invocations from the last 24h."""
-    async with conn.cursor(aiomysql.DictCursor) as cur:
-        await cur.execute(
-            """
-            SELECT
-                tool_name,
-                tool_args,
-                classifier_rule,
-                worker_node_id,
-                timestamp
-            FROM tool_invocations
-            WHERE decision = %s
-              AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            ORDER BY timestamp DESC
-            LIMIT %s
-            """,
-            ("block", limit),
-        )
-        rows = await cur.fetchall()
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                """
+                SELECT
+                    tool_name,
+                    tool_args,
+                    classifier_rule,
+                    worker_node_id,
+                    timestamp
+                FROM tool_invocations
+                WHERE decision = %s
+                  AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                ORDER BY timestamp DESC
+                LIMIT %s
+                """,
+                ("block", limit),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        # Security tables may not exist yet
+        return []
     return [dict(row) for row in rows]
 
 
