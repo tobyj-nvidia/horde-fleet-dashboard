@@ -18,10 +18,10 @@
     {% for w in workers %}
         <tr{% if w.block_rate_pct > fleet_avg * 2 %} class="highlight-row"{% endif %}>
             <td class="mono">{{ w.worker_node_id }}{% if w.no_data %} <span class="badge badge-gray">NO DATA</span>{% endif %}</td>
-            <td>{{ w.total }}</td>
-            <td>{{ w.blocks }}</td>
-            <td>{{ w.highs }}</td>
-            <td>{{ w.criticals }}</td>
+            <td>{{ w.total | int }}</td>
+            <td>{{ w.blocks | int }}</td>
+            <td>{{ w.highs | int }}</td>
+            <td>{{ w.criticals | int }}</td>
             <td>{{ w.block_rate_pct }}%</td>
         </tr>
     {% endfor %}
