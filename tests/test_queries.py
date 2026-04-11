@@ -27,6 +27,7 @@ from dashboard.queries import (
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
+    get_worker_security_health,
 )
 
 
@@ -760,3 +761,145 @@ def test_get_recent_failed_time_window_in_sql():
         f"window_days=3 should appear in query params, got {args!r}"
     )
     assert "interval" in sql, "Query must use INTERVAL for time windowing"
+
+
+# ---------------------------------------------------------------------------
+# get_worker_security_health
+# ---------------------------------------------------------------------------
+
+WORKER_SECURITY_REQUIRED_COLUMNS = {
+    "worker_node_id", "total", "blocks", "highs", "criticals", "block_rate_pct", "no_data",
+}
+
+
+@pytest.mark.asyncio
+async def test_get_worker_security_health_no_error(db_conn):
+    result = await get_worker_security_health(db_conn)
+    assert isinstance(result, list)
+
+
+@pytest.mark.asyncio
+async def test_get_worker_security_health_columns(db_conn):
+    result = await get_worker_security_health(db_conn)
+    if not result:
+        pytest.skip("No worker security health data — column check skipped")
+    for row in result:
+        missing = WORKER_SECURITY_REQUIRED_COLUMNS - set(row.keys())
+        assert not missing, f"Worker security health row missing columns: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_get_worker_security_health_no_data_flag(db_conn):
+    """Workers with no audit data should have no_data=True."""
+    result = await get_worker_security_health(db_conn)
+    for row in result:
+        if row["total"] == 0:
+            assert row["no_data"] is True, (
+                f"Worker {row['worker_node_id']} has total=0 but no_data is not True"
+            )
+        else:
+            assert row["no_data"] is False, (
+                f"Worker {row['worker_node_id']} has total={row['total']} but no_data is True"
+            )
+
+
+def test_get_worker_security_health_sql_joins_nodes():
+    """Verify the query LEFT JOINs audit_sessions with nodes table."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_worker_security_health(mock_conn))
+
+    sql = mock_cur.execute.call_args[0][0].lower()
+    assert "from nodes" in sql, "Query must start from nodes table"
+    assert "left join audit_sessions" in sql, "Query must LEFT JOIN audit_sessions"
+    assert "status = 'active'" in sql, "Query must filter for active workers"
+    assert "coalesce" in sql, "Query must use COALESCE for NULL handling"
+
+
+def test_get_worker_security_health_workers_with_no_audit_data():
+    """Workers with zero audit_sessions rows should appear with total=0 and no_data=True."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    # Simulate DB returning two workers: one with data, one without
+    fake_rows = [
+        {
+            "worker_node_id": "node-hub-01",
+            "total": 500,
+            "blocks": 25,
+            "highs": 10,
+            "criticals": 3,
+            "block_rate_pct": 5.0,
+        },
+        {
+            "worker_node_id": "node-worker-02",
+            "total": 0,
+            "blocks": 0,
+            "highs": 0,
+            "criticals": 0,
+            "block_rate_pct": 0,
+        },
+    ]
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=fake_rows)
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_worker_security_health(mock_conn)
+    )
+
+    assert len(result) == 2, f"Expected 2 workers, got {len(result)}"
+
+    hub = next(w for w in result if w["worker_node_id"] == "node-hub-01")
+    assert hub["no_data"] is False
+    assert hub["total"] == 500
+
+    worker = next(w for w in result if w["worker_node_id"] == "node-worker-02")
+    assert worker["no_data"] is True
+    assert worker["total"] == 0
+    assert worker["blocks"] == 0
+    assert worker["highs"] == 0
+    assert worker["criticals"] == 0
+    assert worker["block_rate_pct"] == 0
+
+
+def test_get_worker_security_health_all_workers_no_data():
+    """When ALL workers have no audit data, they should all appear with no_data=True."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    fake_rows = [
+        {"worker_node_id": "node-01", "total": 0, "blocks": 0, "highs": 0, "criticals": 0, "block_rate_pct": 0},
+        {"worker_node_id": "node-02", "total": 0, "blocks": 0, "highs": 0, "criticals": 0, "block_rate_pct": 0},
+    ]
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=fake_rows)
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_worker_security_health(mock_conn)
+    )
+
+    assert len(result) == 2
+    for w in result:
+        assert w["no_data"] is True, f"Worker {w['worker_node_id']} should have no_data=True"
+        assert w["total"] == 0

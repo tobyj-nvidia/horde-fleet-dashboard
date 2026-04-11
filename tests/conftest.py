@@ -212,11 +212,12 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
-    'from audit_sessions': (
+    'left join audit_sessions': (
         [
-            {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0},
-            {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0},
-            {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0},
+            {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0, 'no_data': False},
+            {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0, 'no_data': False},
+            {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0, 'no_data': False},
+            {'worker_node_id': 'node-cpu-02', 'total': 0, 'blocks': 0, 'highs': 0, 'criticals': 0, 'block_rate_pct': 0, 'no_data': True},
         ],
         None,
     ),
@@ -671,6 +672,7 @@ def sample_worker_security_health():
             "highs": 15,
             "criticals": 5,
             "block_rate_pct": 15.0,
+            "no_data": False,
         },
         {
             "worker_node_id": "node-gpu-01",
@@ -679,6 +681,7 @@ def sample_worker_security_health():
             "highs": 10,
             "criticals": 3,
             "block_rate_pct": 5.0,
+            "no_data": False,
         },
         {
             "worker_node_id": "node-cpu-01",
@@ -687,6 +690,16 @@ def sample_worker_security_health():
             "highs": 2,
             "criticals": 0,
             "block_rate_pct": 1.0,
+            "no_data": False,
+        },
+        {
+            "worker_node_id": "node-cpu-02",
+            "total": 0,
+            "blocks": 0,
+            "highs": 0,
+            "criticals": 0,
+            "block_rate_pct": 0,
+            "no_data": True,
         },
     ]
 
