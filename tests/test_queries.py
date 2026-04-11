@@ -23,10 +23,13 @@ from dashboard.queries import (
     get_queue_counts,
     get_recent_completed,
     get_recent_failed,
+    get_security_overview,
+    get_security_timeline,
     get_tasks,
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
+    get_worker_security_health,
 )
 
 
@@ -760,3 +763,276 @@ def test_get_recent_failed_time_window_in_sql():
         f"window_days=3 should appear in query params, got {args!r}"
     )
     assert "interval" in sql, "Query must use INTERVAL for time windowing"
+
+
+# ---------------------------------------------------------------------------
+# get_security_overview — derived from audit_sessions
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_security_overview_no_error(db_conn):
+    result = await get_security_overview(db_conn)
+    assert isinstance(result, dict)
+
+
+@pytest.mark.asyncio
+async def test_get_security_overview_keys(db_conn):
+    result = await get_security_overview(db_conn)
+    expected_keys = {"total_invocations", "high_flags", "blocks", "unreviewed_alerts", "block_rate_pct"}
+    assert set(result.keys()) == expected_keys, (
+        f"Expected keys {expected_keys}, got {set(result.keys())}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_security_overview_types(db_conn):
+    result = await get_security_overview(db_conn)
+    assert isinstance(result["total_invocations"], (int, float))
+    assert isinstance(result["high_flags"], (int, float))
+    assert isinstance(result["blocks"], (int, float))
+    assert isinstance(result["unreviewed_alerts"], (int, float))
+    assert isinstance(result["block_rate_pct"], (int, float))
+
+
+def test_get_security_overview_queries_audit_sessions():
+    """Verify get_security_overview queries audit_sessions, not tool_invocations."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_overview
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        {"total_invocations": 500, "high_flags": 12, "blocks": 8},
+        {"unreviewed_alerts": 2},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_security_overview(mock_conn)
+    )
+
+    # Check the first SQL call queries audit_sessions
+    first_sql = mock_cur.execute.call_args_list[0][0][0].lower()
+    assert "audit_sessions" in first_sql, (
+        "get_security_overview must query audit_sessions"
+    )
+    assert "tool_invocations" not in first_sql, (
+        "get_security_overview must NOT query tool_invocations"
+    )
+
+    # Verify aggregation columns
+    assert "sum(total_invocations)" in first_sql or "sum( total_invocations )" in first_sql.replace(" ", ""), (
+        "Must SUM(total_invocations) from audit_sessions"
+    )
+    assert "sum(high_count)" in first_sql.replace(" ", "") or "sum(high_count)" in first_sql, (
+        "Must SUM(high_count) from audit_sessions"
+    )
+    assert "sum(critical_count)" in first_sql.replace(" ", "") or "sum(critical_count)" in first_sql, (
+        "Must SUM(critical_count) from audit_sessions"
+    )
+    assert "sum(block_count)" in first_sql.replace(" ", "") or "sum(block_count)" in first_sql, (
+        "Must SUM(block_count) from audit_sessions"
+    )
+
+    # Verify result values
+    assert result["total_invocations"] == 500
+    assert result["high_flags"] == 12
+    assert result["blocks"] == 8
+    assert result["unreviewed_alerts"] == 2
+    assert result["block_rate_pct"] == round(8 / 500 * 100, 1)
+
+
+def test_get_security_overview_block_rate_zero_when_no_invocations():
+    """block_rate_pct should be 0.0 when total_invocations is 0 (no division by zero)."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_overview
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        {"total_invocations": 0, "high_flags": 0, "blocks": 0},
+        {"unreviewed_alerts": 0},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_security_overview(mock_conn)
+    )
+    assert result["block_rate_pct"] == 0.0
+    assert result["total_invocations"] == 0
+
+
+def test_get_security_overview_uses_pushed_at_filter():
+    """Verify query filters by pushed_at >= 24h ago, not timestamp."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_overview
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        {"total_invocations": 0, "high_flags": 0, "blocks": 0},
+        {"unreviewed_alerts": 0},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_security_overview(mock_conn))
+
+    first_sql = mock_cur.execute.call_args_list[0][0][0].lower()
+    assert "pushed_at" in first_sql, (
+        "Query must filter by pushed_at (audit_sessions column), not timestamp"
+    )
+    assert "24 hour" in first_sql, (
+        "Query must use 24 HOUR interval"
+    )
+
+
+def test_get_security_overview_still_reads_security_alerts():
+    """Unreviewed alerts should still come from security_alerts table."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_overview
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        {"total_invocations": 100, "high_flags": 5, "blocks": 3},
+        {"unreviewed_alerts": 7},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_security_overview(mock_conn)
+    )
+
+    # Second SQL call should query security_alerts
+    second_sql = mock_cur.execute.call_args_list[1][0][0].lower()
+    assert "security_alerts" in second_sql, (
+        "Unreviewed alerts must still be read from security_alerts"
+    )
+    assert result["unreviewed_alerts"] == 7
+
+
+# ---------------------------------------------------------------------------
+# get_security_timeline — derived from audit_sessions
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_security_timeline_no_error(db_conn):
+    result = await get_security_timeline(db_conn)
+    assert isinstance(result, list)
+
+
+@pytest.mark.asyncio
+async def test_get_security_timeline_columns(db_conn):
+    result = await get_security_timeline(db_conn)
+    if not result:
+        pytest.skip("No timeline data — column check skipped")
+    for row in result:
+        assert "hour_bucket" in row, "Missing column: hour_bucket"
+        assert "high_count" in row, "Missing column: high_count"
+        assert "critical_count" in row, "Missing column: critical_count"
+
+
+def test_get_security_timeline_queries_audit_sessions():
+    """Verify get_security_timeline queries audit_sessions, not tool_invocations."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_timeline
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[
+        {"hour_bucket": "2026-04-06 08:00", "high_count": 3, "critical_count": 1},
+        {"hour_bucket": "2026-04-06 09:00", "high_count": 5, "critical_count": 0},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        get_security_timeline(mock_conn, hours=24)
+    )
+
+    sql = mock_cur.execute.call_args[0][0].lower()
+    assert "audit_sessions" in sql, (
+        "get_security_timeline must query audit_sessions"
+    )
+    assert "tool_invocations" not in sql, (
+        "get_security_timeline must NOT query tool_invocations"
+    )
+
+    # Verify it uses SUM on high_count and critical_count
+    assert "sum(high_count)" in sql.replace(" ", ""), (
+        "Must SUM(high_count) from audit_sessions"
+    )
+    assert "sum(critical_count)" in sql.replace(" ", ""), (
+        "Must SUM(critical_count) from audit_sessions"
+    )
+
+    # Verify it groups by pushed_at hour
+    assert "pushed_at" in sql, (
+        "Must bucket by pushed_at, not timestamp"
+    )
+
+    assert len(result) == 2
+    assert result[0]["high_count"] == 3
+    assert result[1]["critical_count"] == 0
+
+
+def test_get_security_timeline_accepts_hours_parameter():
+    """Verify the hours parameter is passed to the SQL query."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_security_timeline
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(
+        get_security_timeline(mock_conn, hours=48)
+    )
+
+    args = mock_cur.execute.call_args[0][1]
+    assert 48 in args, f"hours=48 should appear in query params, got {args!r}"
+
+
+# ---------------------------------------------------------------------------
+# get_worker_security_health — already queries audit_sessions (verify still works)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_worker_security_health_no_error(db_conn):
+    result = await get_worker_security_health(db_conn)
+    assert isinstance(result, list)
+
+
+@pytest.mark.asyncio
+async def test_get_worker_security_health_columns(db_conn):
+    result = await get_worker_security_health(db_conn)
+    if not result:
+        pytest.skip("No worker security data — column check skipped")
+    expected = {"worker_node_id", "total", "blocks", "highs", "criticals", "block_rate_pct"}
+    for row in result:
+        missing = expected - set(row.keys())
+        assert not missing, f"Worker security health row missing columns: {missing}"

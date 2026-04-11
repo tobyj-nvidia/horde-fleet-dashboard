@@ -178,9 +178,9 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'total_tokens': 100000,
         'total_usd': 0.50,
     }], None),
-    'from tool_invocations\nwhere': (
+    'sum(total_invocations)': (
         [],
-        {'total_invocations': 150, 'high_flags': 8, 'blocks': 5},
+        {'total_invocations': 1000, 'high_flags': 28, 'blocks': 15},
     ),
     "decision = %s": (
         [
@@ -212,7 +212,7 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
-    'from audit_sessions': (
+    'group by worker_node_id': (
         [
             {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0},
             {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0},
@@ -220,7 +220,7 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
-    "date_format(timestamp, '%%y-%%m-%%d %%h:00')": (
+    "date_format(pushed_at, '%%y-%%m-%%d %%h:00')": (
         [
             {'hour_bucket': '2026-04-06 08:00', 'high_count': 3, 'critical_count': 1},
             {'hour_bucket': '2026-04-06 09:00', 'high_count': 5, 'critical_count': 0},
