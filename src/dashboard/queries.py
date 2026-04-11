@@ -669,22 +669,25 @@ async def get_tool_heatmap(conn, limit: int = 20) -> list[dict]:
 
 
 async def get_worker_security_health(conn) -> list[dict]:
-    """Per-worker security stats for last 24h from audit_sessions."""
+    """Per-worker security stats for last 24h, including all active workers."""
     try:
         async with conn.cursor(aiomysql.DictCursor) as cur:
             await cur.execute(
                 """
-                SELECT worker_node_id,
-                    SUM(total_invocations) AS total,
-                    SUM(block_count) AS blocks,
-                    SUM(high_count) AS highs,
-                    SUM(critical_count) AS criticals,
-                    CASE WHEN SUM(total_invocations) > 0
-                        THEN ROUND(SUM(block_count) / SUM(total_invocations) * 100, 1)
-                        ELSE 0 END AS block_rate_pct
-                FROM audit_sessions
-                WHERE pushed_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-                GROUP BY worker_node_id
+                SELECT n.id AS worker_node_id,
+                    COALESCE(SUM(a.total_invocations), 0) AS total,
+                    COALESCE(SUM(a.block_count), 0) AS blocks,
+                    COALESCE(SUM(a.high_count), 0) AS highs,
+                    COALESCE(SUM(a.critical_count), 0) AS criticals,
+                    CASE WHEN COALESCE(SUM(a.total_invocations), 0) > 0
+                        THEN ROUND(COALESCE(SUM(a.block_count), 0) / SUM(a.total_invocations) * 100, 1)
+                        ELSE 0 END AS block_rate_pct,
+                    CASE WHEN SUM(a.total_invocations) IS NULL THEN 1 ELSE 0 END AS no_data
+                FROM nodes n
+                LEFT JOIN audit_sessions a ON a.worker_node_id = n.id
+                  AND a.pushed_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                WHERE n.status = 'active'
+                GROUP BY n.id
                 ORDER BY block_rate_pct DESC
                 """
             )

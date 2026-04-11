@@ -671,6 +671,7 @@ def sample_worker_security_health():
             "highs": 15,
             "criticals": 5,
             "block_rate_pct": 15.0,
+            "no_data": 0,
         },
         {
             "worker_node_id": "node-gpu-01",
@@ -679,6 +680,7 @@ def sample_worker_security_health():
             "highs": 10,
             "criticals": 3,
             "block_rate_pct": 5.0,
+            "no_data": 0,
         },
         {
             "worker_node_id": "node-cpu-01",
@@ -687,6 +689,7 @@ def sample_worker_security_health():
             "highs": 2,
             "criticals": 0,
             "block_rate_pct": 1.0,
+            "no_data": 0,
         },
     ]
 

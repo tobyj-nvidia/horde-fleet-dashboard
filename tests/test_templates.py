@@ -829,9 +829,9 @@ def test_worker_security_health_empty(jinja_env):
 def test_worker_security_health_highlight_high_block_rate(jinja_env):
     """Rows with block_rate > fleet average * 2 should be highlighted."""
     workers = [
-        {"worker_node_id": "node-outlier", "total": 100, "blocks": 20, "highs": 5, "criticals": 2, "block_rate_pct": 20.0},
-        {"worker_node_id": "node-normal-1", "total": 100, "blocks": 2, "highs": 1, "criticals": 0, "block_rate_pct": 2.0},
-        {"worker_node_id": "node-normal-2", "total": 100, "blocks": 3, "highs": 1, "criticals": 0, "block_rate_pct": 3.0},
+        {"worker_node_id": "node-outlier", "total": 100, "blocks": 20, "highs": 5, "criticals": 2, "block_rate_pct": 20.0, "no_data": 0},
+        {"worker_node_id": "node-normal-1", "total": 100, "blocks": 2, "highs": 1, "criticals": 0, "block_rate_pct": 2.0, "no_data": 0},
+        {"worker_node_id": "node-normal-2", "total": 100, "blocks": 3, "highs": 1, "criticals": 0, "block_rate_pct": 3.0, "no_data": 0},
     ]
     # Fleet average = (20+2+3)/(100+100+100)*100 = 8.33%, threshold = 16.67%
     # node-outlier at 20% should be highlighted
@@ -843,8 +843,8 @@ def test_worker_security_health_highlight_high_block_rate(jinja_env):
 def test_worker_security_health_no_highlight_when_all_below_threshold(jinja_env):
     """No rows highlighted when all are below 2x fleet average."""
     workers = [
-        {"worker_node_id": "node-a", "total": 100, "blocks": 5, "highs": 2, "criticals": 0, "block_rate_pct": 5.0},
-        {"worker_node_id": "node-b", "total": 100, "blocks": 4, "highs": 1, "criticals": 0, "block_rate_pct": 4.0},
+        {"worker_node_id": "node-a", "total": 100, "blocks": 5, "highs": 2, "criticals": 0, "block_rate_pct": 5.0, "no_data": 0},
+        {"worker_node_id": "node-b", "total": 100, "blocks": 4, "highs": 1, "criticals": 0, "block_rate_pct": 4.0, "no_data": 0},
     ]
     # Fleet average = 9/200*100 = 4.5%, threshold = 9.0%
     # Both are below threshold
@@ -866,6 +866,7 @@ def test_worker_security_health_required_columns_present(jinja_env):
         "highs": 3,
         "criticals": 1,
         "block_rate_pct": 5.0,
+        "no_data": 0,
     }
     # Should not raise UndefinedError with StrictUndefined
     html = render(jinja_env, "fragments/worker_security_health.html", workers=[minimal_row])
@@ -883,6 +884,21 @@ def test_worker_security_health_table_headers(jinja_env, sample_worker_security_
     assert "High Flags" in html
     assert "Criticals" in html
     assert "Block Rate %" in html
+
+
+def test_worker_security_health_no_data_badge(jinja_env):
+    """Workers with no_data=1 should display a 'NO DATA' badge."""
+    workers = [
+        {"worker_node_id": "node-with-data", "total": 100, "blocks": 5, "highs": 2, "criticals": 0, "block_rate_pct": 5.0, "no_data": 0},
+        {"worker_node_id": "node-no-data", "total": 0, "blocks": 0, "highs": 0, "criticals": 0, "block_rate_pct": 0, "no_data": 1},
+    ]
+    html = render(jinja_env, "fragments/worker_security_health.html", workers=workers)
+    assert "node-with-data" in html
+    assert "node-no-data" in html
+    assert "badge-gray" in html
+    assert "NO DATA" in html
+    # The NO DATA badge should only appear once (for node-no-data)
+    assert html.count("NO DATA") == 1
 
 
 # ---------------------------------------------------------------------------

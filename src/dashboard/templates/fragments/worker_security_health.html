@@ -17,7 +17,7 @@
     <tbody>
     {% for w in workers %}
         <tr{% if w.block_rate_pct > fleet_avg * 2 %} class="highlight-row"{% endif %}>
-            <td class="mono">{{ w.worker_node_id }}</td>
+            <td class="mono">{{ w.worker_node_id }}{% if w.no_data %} <span class="badge badge-gray">NO DATA</span>{% endif %}</td>
             <td>{{ w.total }}</td>
             <td>{{ w.blocks }}</td>
             <td>{{ w.highs }}</td>
