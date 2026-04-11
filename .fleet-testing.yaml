@@ -1,0 +1,52 @@
+# Fleet testing configuration for horde-fleet-dashboard
+# Python/FastAPI dashboard with pytest test suite (async, mock-capable)
+
+setup:
+  - pip install -q -r requirements.txt
+  - pip install -q -e ".[test]"
+
+test:
+  # Full test suite
+  - name: all
+    command: python3 -m pytest tests/ -v --tb=short
+    timeout: 120
+
+scoped:
+  # Template rendering tests — no DB needed, pure Jinja2 validation
+  - name: templates
+    command: python3 -m pytest tests/test_templates.py -v --tb=short
+    paths:
+      - src/dashboard/templates/**
+      - tests/test_templates.py
+    timeout: 60
+
+  # Route / endpoint tests — exercises HTTP layer with mock DB
+  - name: routes
+    command: python3 -m pytest tests/test_routes.py -v --tb=short
+    paths:
+      - src/dashboard/routes/**
+      - src/dashboard/main.py
+      - src/dashboard/db.py
+      - src/dashboard/queries.py
+      - tests/test_routes.py
+      - tests/conftest.py
+    timeout: 60
+
+  # Query tests — validates SQL against DB (or mock)
+  - name: queries
+    command: python3 -m pytest tests/test_queries.py -v --tb=short
+    paths:
+      - src/dashboard/queries.py
+      - src/dashboard/db.py
+      - tests/test_queries.py
+      - tests/conftest.py
+    timeout: 60
+
+  # Schema validation — checks column references match DB schema
+  - name: schema
+    command: python3 -m pytest tests/test_schema.py -v --tb=short
+    paths:
+      - src/dashboard/queries.py
+      - tests/test_schema.py
+      - tests/conftest.py
+    timeout: 60
