@@ -721,13 +721,15 @@ async def get_worker_security_health(conn) -> list[dict]:
                 FROM nodes n
                 LEFT JOIN audit_sessions a ON a.worker_node_id = n.id
                   AND a.pushed_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-                WHERE n.status = 'active'
+                WHERE n.status IN ('active', 'online')
                 GROUP BY n.id
                 ORDER BY block_rate_pct DESC
                 """
             )
             rows = await cur.fetchall()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("worker_security_health query failed: %s", e)
         return []
     return [dict(row) for row in rows]
 
