@@ -166,11 +166,20 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         [],
         {'p50_sec': 120, 'p95_sec': 300, 'p99_sec': 600, 'avg_sec': 150},
     ),
-    'total_cost_usd': ([{
-        'source': 'anthropic',
-        'model': 'claude-sonnet-4-6',
+    'as total_cost': ([], {
+        'total_input': 50000,
+        'total_output': 50000,
         'total_tokens': 100000,
-        'total_cost_usd': 0.50,
+        'total_cost': 0.50,
+        'total_rows': 10,
+    }),
+    'group by source, provider, model': ([{
+        'source': 'anthropic',
+        'provider': 'anthropic',
+        'model': 'claude-sonnet-4-6',
+        'input_tokens': 50000,
+        'output_tokens': 50000,
+        'cost': 0.50,
     }], None),
     'total_usd': ([{
         'provider': 'anthropic',

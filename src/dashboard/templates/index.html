@@ -38,7 +38,7 @@
 
     <div class="card metric-panel" id="tokens-panel">
         <h2>Token Spend</h2>
-        <div hx-get="/fragments/token-spend" hx-trigger="load, every 60s" hx-swap="outerHTML">
+        <div hx-get="/fragments/token-spend?days=1" hx-trigger="load, every 60s" hx-swap="outerHTML">
             Loading...
         </div>
     </div>

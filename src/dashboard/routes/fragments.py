@@ -111,22 +111,23 @@ async def fragment_throughput(request: Request, conn=Depends(get_db)):
 
 
 @router.get("/fragments/token-spend", response_class=HTMLResponse)
-async def fragment_token_spend(request: Request, period: int = 1, conn=Depends(get_db)):
-    rows = await get_token_spend_summary(conn, period_days=period)
-    for r in rows:
-        r["total_cost_usd"] = float(r["total_cost_usd"] or 0)
-        r["total_tokens"] = int(r["total_tokens"] or 0)
-    total_tokens = sum(r["total_tokens"] for r in rows)
-    total_cost_usd = sum(r["total_cost_usd"] for r in rows)
+async def fragment_token_spend(request: Request, days: int = 1, conn=Depends(get_db)):
+    if days not in (1, 7, 30):
+        days = 1
+    data = await get_token_spend_summary(conn, days=days)
+    # Ensure numeric types for template rendering
+    data["total_input"] = int(data.get("total_input") or 0)
+    data["total_output"] = int(data.get("total_output") or 0)
+    data["total_tokens"] = int(data.get("total_tokens") or 0)
+    data["total_cost"] = float(data.get("total_cost") or 0)
+    data["total_rows"] = int(data.get("total_rows") or 0)
+    for r in data.get("breakdown", []):
+        r["input_tokens"] = int(r.get("input_tokens") or 0)
+        r["output_tokens"] = int(r.get("output_tokens") or 0)
+        r["cost"] = float(r.get("cost") or 0)
     return templates.TemplateResponse(
         "fragments/token_spend.html",
-        {
-            "request": request,
-            "rows": rows,
-            "total_tokens": total_tokens,
-            "total_cost_usd": total_cost_usd,
-            "period": period,
-        },
+        {"request": request, "data": data},
     )
 
 

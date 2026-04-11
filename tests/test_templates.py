@@ -493,57 +493,142 @@ def test_tokens_renders(jinja_env, sample_token_rows):
 # ---------------------------------------------------------------------------
 
 def test_token_spend_renders_with_data(jinja_env):
-    rows = [
-        {"source": "task", "model": "claude-sonnet-4-6", "total_tokens": 50000, "total_cost_usd": 0.25},
-        {"source": "gateway", "model": "claude-haiku-4-5", "total_tokens": 10000, "total_cost_usd": 0.05},
-    ]
-    html = render(
-        jinja_env, "fragments/token_spend.html",
-        rows=rows, total_tokens=60000, total_cost_usd=0.30, period=1,
-    )
+    data = {
+        "total_input": 30000,
+        "total_output": 30000,
+        "total_tokens": 60000,
+        "total_cost": 0.30,
+        "total_rows": 15,
+        "days": 1,
+        "breakdown": [
+            {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tokens": 25000, "output_tokens": 25000, "cost": 0.25},
+            {"source": "gateway", "provider": "anthropic", "model": "claude-haiku-4-5", "input_tokens": 5000, "output_tokens": 5000, "cost": 0.05},
+        ],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
     assert "task" in html
     assert "gateway" in html
+    assert "anthropic" in html
     assert "claude-sonnet-4-6" in html
     assert "0.3000" in html
+    assert "API Calls" in html
+    assert "Total Tokens" in html
+    assert "Estimated Cost" in html
 
 
 def test_token_spend_empty(jinja_env):
-    html = render(
-        jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
-    )
+    data = {
+        "total_input": 0,
+        "total_output": 0,
+        "total_tokens": 0,
+        "total_cost": 0.0,
+        "total_rows": 0,
+        "days": 1,
+        "breakdown": [],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
     assert "No data" in html
 
 
 def test_token_spend_period_selector_shows_active(jinja_env):
-    html = render(
-        jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=7,
-    )
+    data = {
+        "total_input": 0,
+        "total_output": 0,
+        "total_tokens": 0,
+        "total_cost": 0.0,
+        "total_rows": 0,
+        "days": 7,
+        "breakdown": [],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
     assert "7d" in html
     assert "active" in html
 
 
 def test_token_spend_all_periods_present(jinja_env):
-    html = render(
-        jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
-    )
+    data = {
+        "total_input": 0,
+        "total_output": 0,
+        "total_tokens": 0,
+        "total_cost": 0.0,
+        "total_rows": 0,
+        "days": 1,
+        "breakdown": [],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
     assert "1d" in html
     assert "7d" in html
     assert "30d" in html
 
 
 def test_token_spend_source_badge_rendered(jinja_env):
-    rows = [
-        {"source": "cron", "model": "claude-opus-4-6", "total_tokens": 1000, "total_cost_usd": 0.10},
-    ]
-    html = render(
-        jinja_env, "fragments/token_spend.html",
-        rows=rows, total_tokens=1000, total_cost_usd=0.10, period=1,
-    )
+    data = {
+        "total_input": 500,
+        "total_output": 500,
+        "total_tokens": 1000,
+        "total_cost": 0.10,
+        "total_rows": 1,
+        "days": 1,
+        "breakdown": [
+            {"source": "cron", "provider": "anthropic", "model": "claude-opus-4-6", "input_tokens": 500, "output_tokens": 500, "cost": 0.10},
+        ],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
     assert "source-badge-cron" in html
     assert "cron" in html
+
+
+def test_token_spend_shows_input_output_columns(jinja_env):
+    data = {
+        "total_input": 25000,
+        "total_output": 35000,
+        "total_tokens": 60000,
+        "total_cost": 0.30,
+        "total_rows": 5,
+        "days": 1,
+        "breakdown": [
+            {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tokens": 25000, "output_tokens": 35000, "cost": 0.30},
+        ],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
+    assert "Input Tokens" in html
+    assert "Output Tokens" in html
+    assert "25,000" in html
+    assert "35,000" in html
+
+
+def test_token_spend_shows_api_calls(jinja_env):
+    data = {
+        "total_input": 10000,
+        "total_output": 10000,
+        "total_tokens": 20000,
+        "total_cost": 0.10,
+        "total_rows": 42,
+        "days": 1,
+        "breakdown": [
+            {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tokens": 10000, "output_tokens": 10000, "cost": 0.10},
+        ],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
+    assert "API Calls" in html
+    assert "42" in html
+
+
+def test_token_spend_shows_provider_column(jinja_env):
+    data = {
+        "total_input": 10000,
+        "total_output": 10000,
+        "total_tokens": 20000,
+        "total_cost": 0.10,
+        "total_rows": 1,
+        "days": 1,
+        "breakdown": [
+            {"source": "task", "provider": "openai", "model": "gpt-4", "input_tokens": 10000, "output_tokens": 10000, "cost": 0.10},
+        ],
+    }
+    html = render(jinja_env, "fragments/token_spend.html", data=data)
+    assert "Provider" in html
+    assert "openai" in html
 
 
 # ---------------------------------------------------------------------------
