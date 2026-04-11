@@ -1,0 +1,19 @@
+setup:
+  - name: install-deps
+    command: pip install -q -r requirements.txt
+    retries: 2
+    retry_delay_secs: 5
+
+env_requirements:
+  - DATABASE_URL
+
+tests:
+  - name: pytest
+    command: python3 -m pytest tests/ -q
+    timeout_secs: 120
+
+scoped:
+  - paths: ['src/dashboard/templates/**']
+    command: python3 -m pytest tests/ -q -k template
+  - paths: ['src/dashboard/static/**']
+    command: 'echo static-only change, no tests needed'
