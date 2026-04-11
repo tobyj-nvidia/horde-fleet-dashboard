@@ -25,6 +25,9 @@
           {% else %}
           <span class="badge badge-cpu">CPU</span>
           {% endif %}
+          {% if task.test_gate and task.test_gate.scoped %}
+          <span class="badge badge-scoped">Scoped</span>
+          {% endif %}
         </td>
         <td>{{ (task.claimed_by or "—").replace("tobyj-fleet-1-", "") }}</td>
         <td>

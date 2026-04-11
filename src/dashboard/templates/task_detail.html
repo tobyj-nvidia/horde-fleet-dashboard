@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Task Detail</h1>
+
+<div class="card">
+  <h2>Task Info</h2>
+  <table class="data-table">
+    <tr><td><strong>ID</strong></td><td class="mono">{{ task.id }}</td></tr>
+    <tr><td><strong>Name</strong></td><td>{{ task.name or "—" }}</td></tr>
+    <tr><td><strong>Type</strong></td><td>{{ task.type or "—" }}</td></tr>
+    <tr><td><strong>Project</strong></td><td>{{ task.project or "—" }}</td></tr>
+    <tr><td><strong>Status</strong></td><td><span class="status-{{ task.status }}">{{ task.status }}</span></td></tr>
+    <tr><td><strong>Node</strong></td><td>{{ task.claimed_by or "—" }}</td></tr>
+    <tr><td><strong>Submitted</strong></td><td>{{ task.submitted_at or "—" }}</td></tr>
+    <tr><td><strong>Started</strong></td><td>{{ task.started_at or "—" }}</td></tr>
+    <tr><td><strong>Completed</strong></td><td>{{ task.completed_at or "—" }}</td></tr>
+    <tr><td><strong>Retries</strong></td><td>{{ task.retry_count }} / {{ task.max_retries }}</td></tr>
+    <tr><td><strong>Resource</strong></td><td>
+      {% if task.resource_class == 'gpu' %}
+      <span class="badge badge-gpu">GPU</span>
+      {% else %}
+      <span class="badge badge-cpu">CPU</span>
+      {% endif %}
+    </td></tr>
+  </table>
+</div>
+
+{% if result %}
+<div class="card">
+  <h2>Result</h2>
+  <table class="data-table">
+    <tr><td><strong>Outcome</strong></td><td>{{ result.outcome or "—" }}</td></tr>
+    {% if result.error_msg %}
+    <tr><td><strong>Error</strong></td><td class="text-warn">{{ result.error_msg }}</td></tr>
+    {% endif %}
+    {% if result.duration_sec is not none %}
+    <tr><td><strong>Duration</strong></td><td>{{ result.duration_sec }}s</td></tr>
+    {% endif %}
+  </table>
+</div>
+{% endif %}
+
+{% if test_gate %}
+<div class="card test-gate-section">
+  <h2>Test Gate</h2>
+  <table class="data-table">
+    <tr>
+      <td><strong>Test Scope</strong></td>
+      <td>
+        {% if test_gate.scoped %}
+        <span class="badge badge-scoped">Scoped</span>
+        {% else %}
+        <span class="badge badge-full-tests">Full</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% if test_gate.setup_retries > 0 %}
+    <tr>
+      <td><strong>Setup Retries</strong></td>
+      <td>
+        <span class="badge badge-yellow">{{ test_gate.setup_retries }} {{ "retry" if test_gate.setup_retries == 1 else "retries" }}</span>
+      </td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td><strong>Steps Run</strong></td>
+      <td>
+        {% if test_gate.steps_run %}
+        <ul class="test-gate-steps">
+          {% for step in test_gate.steps_run %}
+          <li>
+            {% if test_gate.failed_step == step %}
+              <span class="badge badge-red">✗ {{ step }}</span>
+              {% if step == 'env_check' %}
+              <span class="test-gate-hint">Env check failed</span>
+              {% elif step == 'test' %}
+              <span class="test-gate-hint">Test failed</span>
+              {% endif %}
+            {% else %}
+              <span class="badge badge-green">✓ {{ step }}</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <span class="text-muted">No steps recorded</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% if test_gate.failed_step %}
+    <tr>
+      <td><strong>Failed Step</strong></td>
+      <td>
+        {% if test_gate.failed_step == 'env_check' %}
+        <span class="badge badge-red">Env check failed</span>
+        {% elif test_gate.failed_step == 'test' %}
+        <span class="badge badge-red">Test failed</span>
+        {% else %}
+        <span class="badge badge-red">{{ test_gate.failed_step }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
+  </table>
+</div>
+{% endif %}
+
+{% if telemetry %}
+<div class="card">
+  <h2>Telemetry</h2>
+  <table class="data-table">
+    <tr><td><strong>API Calls</strong></td><td>{{ telemetry.api_calls or 0 }}</td></tr>
+    <tr><td><strong>Input Tokens</strong></td><td>{{ "{:,}".format(telemetry.total_input_tokens or 0) }}</td></tr>
+    <tr><td><strong>Output Tokens</strong></td><td>{{ "{:,}".format(telemetry.total_output_tokens or 0) }}</td></tr>
+    <tr><td><strong>Total Cost</strong></td><td>${{ "%.4f"|format(telemetry.total_cost_usd or 0) }}</td></tr>
+  </table>
+</div>
+{% endif %}
+
+<div style="margin-top: 1rem;">
+  <a href="/" class="btn">← Back to Dashboard</a>
+</div>
+{% endblock %}

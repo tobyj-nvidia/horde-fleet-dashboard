@@ -8,6 +8,8 @@ These tests catch column-name mismatches, typos in status values, and bad JOINs
 before they reach production.
 """
 
+import json
+
 import pytest
 import pytest_asyncio
 
@@ -27,6 +29,7 @@ from dashboard.queries import (
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
+    parse_test_gate,
 )
 
 
@@ -54,6 +57,7 @@ async def test_get_queue_counts_returns_int_values(db_conn):
 ACTIVE_TASK_REQUIRED_COLUMNS = {
     "id", "name", "type", "project", "status", "claimed_by",
     "started_at", "retry_count", "resource_class", "running_sec", "is_blocked",
+    "test_gate",
 }
 
 
@@ -774,3 +778,148 @@ def test_get_recent_failed_time_window_in_sql():
         f"window_days=3 should appear in query params, got {args!r}"
     )
     assert "interval" in sql, "Query must use INTERVAL for time windowing"
+
+
+# ---------------------------------------------------------------------------
+# parse_test_gate
+# ---------------------------------------------------------------------------
+
+
+def test_parse_test_gate_returns_none_for_none_input():
+    assert parse_test_gate(None) is None
+
+
+def test_parse_test_gate_returns_none_when_no_test_gate_key():
+    row = {"summary": '{"outcome": "success"}'}
+    assert parse_test_gate(row) is None
+
+
+def test_parse_test_gate_returns_none_for_non_json_summary():
+    row = {"summary": "just a plain text summary"}
+    assert parse_test_gate(row) is None
+
+
+def test_parse_test_gate_returns_none_for_empty_row():
+    row = {}
+    assert parse_test_gate(row) is None
+
+
+def test_parse_test_gate_extracts_from_summary():
+    row = {
+        "summary": json.dumps({
+            "test_gate": {
+                "scoped": True,
+                "steps_run": ["env_check", "test"],
+                "failed_step": None,
+                "setup_retries": 0,
+            }
+        })
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    assert result["scoped"] is True
+    assert result["steps_run"] == ["env_check", "test"]
+    assert result["failed_step"] is None
+    assert result["setup_retries"] == 0
+
+
+def test_parse_test_gate_extracts_from_result_json():
+    row = {
+        "result_json": json.dumps({
+            "test_gate": {
+                "scoped": False,
+                "steps_run": ["env_check", "test"],
+                "failed_step": "test",
+                "setup_retries": 2,
+            }
+        })
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    assert result["scoped"] is False
+    assert result["failed_step"] == "test"
+    assert result["setup_retries"] == 2
+
+
+def test_parse_test_gate_prefers_result_json_over_summary():
+    row = {
+        "result_json": json.dumps({
+            "test_gate": {
+                "scoped": True,
+                "steps_run": ["env_check"],
+                "failed_step": "env_check",
+                "setup_retries": 1,
+            }
+        }),
+        "summary": json.dumps({
+            "test_gate": {
+                "scoped": False,
+                "steps_run": [],
+                "failed_step": None,
+                "setup_retries": 0,
+            }
+        }),
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    # result_json is checked first
+    assert result["scoped"] is True
+    assert result["failed_step"] == "env_check"
+
+
+def test_parse_test_gate_handles_dict_value():
+    """If the field is already parsed as a dict (not a JSON string)."""
+    row = {
+        "summary": {
+            "test_gate": {
+                "scoped": True,
+                "steps_run": ["env_check", "test"],
+                "failed_step": None,
+                "setup_retries": 0,
+            }
+        }
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    assert result["scoped"] is True
+
+
+def test_parse_test_gate_handles_missing_keys_with_defaults():
+    row = {
+        "summary": json.dumps({
+            "test_gate": {}
+        })
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    assert result["scoped"] is False
+    assert result["steps_run"] == []
+    assert result["failed_step"] is None
+    assert result["setup_retries"] == 0
+
+
+def test_parse_test_gate_env_check_failed():
+    row = {
+        "summary": json.dumps({
+            "test_gate": {
+                "scoped": False,
+                "steps_run": ["env_check"],
+                "failed_step": "env_check",
+                "setup_retries": 3,
+            }
+        })
+    }
+    result = parse_test_gate(row)
+    assert result is not None
+    assert result["failed_step"] == "env_check"
+    assert result["setup_retries"] == 3
+
+
+def test_parse_test_gate_returns_none_for_non_dict_test_gate():
+    """If test_gate value is not a dict, return None."""
+    row = {
+        "summary": json.dumps({
+            "test_gate": "invalid"
+        })
+    }
+    assert parse_test_gate(row) is None

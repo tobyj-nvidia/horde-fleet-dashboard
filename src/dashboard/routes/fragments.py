@@ -25,6 +25,7 @@ from dashboard.queries import (
     get_recent_failed,
     get_security_overview,
     get_security_timeline,
+    get_task,
     get_throughput,
     get_token_spend,
     get_token_spend_summary,
@@ -368,3 +369,20 @@ async def security_incident_detail(request: Request, invocation_id: str, conn=De
     if incident is None:
         return HTMLResponse('Incident not found', status_code=404)
     return templates.TemplateResponse('security_incident.html', {'request': request, **incident})
+
+
+@router.get('/tasks/{task_id}', response_class=HTMLResponse)
+async def task_detail(request: Request, task_id: str, conn=Depends(get_db)):
+    try:
+        data = await get_task(conn, task_id)
+    except Exception:
+        return HTMLResponse('Task not found', status_code=404)
+    if data is None:
+        return HTMLResponse('Task not found', status_code=404)
+    return templates.TemplateResponse('task_detail.html', {
+        'request': request,
+        'task': data['task'],
+        'result': data['result'],
+        'telemetry': data['telemetry'],
+        'test_gate': data.get('test_gate'),
+    })

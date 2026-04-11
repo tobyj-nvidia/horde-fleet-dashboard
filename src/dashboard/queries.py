@@ -1,6 +1,57 @@
 """SQL queries for the Horde Fleet Dashboard."""
 
+import json
+
 import aiomysql
+
+
+def parse_test_gate(result_row: dict | None) -> dict | None:
+    """Extract test_gate info from a task_results row.
+
+    The worker writes a JSON ``test_gate`` object into the ``result_json``
+    (or ``summary``) column of task_results.  This helper tries to parse it
+    and returns a normalised dict with:
+
+        scoped (bool), steps_run (list[str]), failed_step (str|None),
+        setup_retries (int)
+
+    Returns ``None`` when no test_gate data is present.
+    """
+    if result_row is None:
+        return None
+
+    raw = None
+    # Try result_json first, then summary — the worker may store it in either
+    for field in ("result_json", "summary"):
+        val = result_row.get(field)
+        if val is None:
+            continue
+        if isinstance(val, str):
+            try:
+                parsed = json.loads(val)
+            except (json.JSONDecodeError, TypeError):
+                continue
+        elif isinstance(val, dict):
+            parsed = val
+        else:
+            continue
+
+        if isinstance(parsed, dict) and "test_gate" in parsed:
+            raw = parsed["test_gate"]
+            break
+
+    if raw is None:
+        return None
+
+    if not isinstance(raw, dict):
+        return None
+
+    return {
+        "scoped": bool(raw.get("scoped", False)),
+        "steps_run": list(raw.get("steps_run", [])),
+        "failed_step": raw.get("failed_step"),
+        "setup_retries": int(raw.get("setup_retries", 0)),
+    }
 
 
 async def get_queue_counts(conn) -> dict[str, int]:
@@ -31,15 +82,22 @@ async def get_active_tasks(conn) -> list[dict]:
                     SELECT 1 FROM task_dependencies td
                     JOIN tasks dep ON dep.id = td.depends_on
                     WHERE td.task_id = t.id AND dep.status != 'completed'
-                ) AS is_blocked
+                ) AS is_blocked,
+                tr.summary AS result_summary
             FROM tasks t
+            LEFT JOIN task_results tr ON tr.task_id = t.id
             WHERE t.status IN (%s, %s)
             ORDER BY t.started_at ASC
             """,
             ("claimed", "running"),
         )
         rows = await cur.fetchall()
-    return [dict(row) for row in rows]
+    result = []
+    for row in rows:
+        d = dict(row)
+        d["test_gate"] = parse_test_gate({"summary": d.pop("result_summary", None)})
+        result.append(d)
+    return result
 
 
 async def get_pending_tasks(conn, limit: int = 50) -> list[dict]:
@@ -325,10 +383,12 @@ async def get_task(conn, task_id: str) -> dict | None:
         )
         telemetry_row = await cur.fetchone()
 
+    result_dict = dict(result_row) if result_row else None
     return {
         "task": dict(task_row),
-        "result": dict(result_row) if result_row else None,
+        "result": result_dict,
         "telemetry": dict(telemetry_row) if telemetry_row else None,
+        "test_gate": parse_test_gate(result_dict),
     }
 
 

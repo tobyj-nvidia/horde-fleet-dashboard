@@ -106,6 +106,7 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
                 'resource_class': 'gpu',
                 'running_sec': 120,
                 'is_blocked': False,
+                'result_summary': None,
             }
         ],
         None,
@@ -238,6 +239,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         None,
     ),
     'select count': ([], {'cnt': 1}),
+    'from task_results where task_id': ([], {
+        'task_id': 'task-mock-001',
+        'outcome': 'success',
+        'summary': '{"test_gate": {"scoped": true, "steps_run": ["env_check", "test"], "failed_step": null, "setup_retries": 0}}',
+        'error_msg': None,
+        'completed_at': '2026-04-06 09:05:00',
+        'duration_sec': 300,
+    }),
     'select * from tasks': ([{
         'id': 'task-mock-001',
         'type': 'code-gen',
@@ -254,7 +263,23 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'max_retries': 3,
         'resource_class': 'cpu',
         'priority': 30,
-    }], None),
+    }], {
+        'id': 'task-mock-001',
+        'type': 'code-gen',
+        'name': 'mock-task',
+        'project': 'acme',
+        'status': 'pending',
+        'claimed_by': None,
+        'started_at': None,
+        'completed_at': None,
+        'submitted_at': '2026-04-06 09:00:00',
+        'prompt': 'Generate a test',
+        'repos': 'acme/core',
+        'retry_count': 0,
+        'max_retries': 3,
+        'resource_class': 'cpu',
+        'priority': 30,
+    }),
     'max(recorded_at) as max_recorded_at': ([{
         'node_id': 'node-gpu-01',
         'cpu_pct': 45.0,
@@ -508,6 +533,7 @@ def sample_tasks():
             "running_sec": 120,
             "is_blocked": False,
             "_elapsed": "2m 0s",
+            "test_gate": None,
         }
     ]
 

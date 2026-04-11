@@ -87,9 +87,71 @@ def test_active_tasks_blocked_badge(jinja_env):
         "running_sec": None,
         "is_blocked": True,
         "_elapsed": "—",
+        "test_gate": None,
     }
     html = render(jinja_env, "fragments/active_tasks.html", tasks=[blocked_task])
     assert "blocked" in html
+
+
+def test_active_tasks_scoped_badge(jinja_env):
+    """Tasks with test_gate.scoped=True should show a 'Scoped' badge."""
+    scoped_task = {
+        "id": "task-scoped-0001",
+        "name": "Scoped test task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "running",
+        "claimed_by": "node-gpu-01",
+        "resource_class": "gpu",
+        "retry_count": 0,
+        "running_sec": 60,
+        "is_blocked": False,
+        "_elapsed": "1m 0s",
+        "test_gate": {"scoped": True, "steps_run": ["env_check", "test"], "failed_step": None, "setup_retries": 0},
+    }
+    html = render(jinja_env, "fragments/active_tasks.html", tasks=[scoped_task])
+    assert "Scoped" in html
+    assert "badge-scoped" in html
+
+
+def test_active_tasks_no_scoped_badge_when_full(jinja_env):
+    """Tasks with test_gate.scoped=False should NOT show a 'Scoped' badge."""
+    full_task = {
+        "id": "task-full-0001",
+        "name": "Full test task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "running",
+        "claimed_by": "node-gpu-01",
+        "resource_class": "gpu",
+        "retry_count": 0,
+        "running_sec": 60,
+        "is_blocked": False,
+        "_elapsed": "1m 0s",
+        "test_gate": {"scoped": False, "steps_run": ["env_check", "test"], "failed_step": None, "setup_retries": 0},
+    }
+    html = render(jinja_env, "fragments/active_tasks.html", tasks=[full_task])
+    assert "badge-scoped" not in html
+
+
+def test_active_tasks_no_scoped_badge_when_no_test_gate(jinja_env):
+    """Tasks without test_gate data should NOT show a 'Scoped' badge."""
+    task = {
+        "id": "task-no-tg-0001",
+        "name": "No test gate task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "running",
+        "claimed_by": "node-gpu-01",
+        "resource_class": "gpu",
+        "retry_count": 0,
+        "running_sec": 60,
+        "is_blocked": False,
+        "_elapsed": "1m 0s",
+        "test_gate": None,
+    }
+    html = render(jinja_env, "fragments/active_tasks.html", tasks=[task])
+    assert "badge-scoped" not in html
 
 
 # ---------------------------------------------------------------------------
@@ -1080,3 +1142,284 @@ def test_security_timeline_required_columns_present(jinja_env):
         critical_spark=sparkline([0]),
     )
     assert "2026-04-06 12:00" in html
+
+
+# ---------------------------------------------------------------------------
+# task_detail.html
+# ---------------------------------------------------------------------------
+
+def test_task_detail_renders_basic(jinja_env):
+    """Task detail template renders with minimal task data and no test_gate."""
+    task = {
+        "id": "task-detail-001",
+        "name": "gen-feature-abc",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "gpu",
+    }
+    result = {
+        "outcome": "success",
+        "error_msg": None,
+        "duration_sec": 240,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=result, telemetry=None, test_gate=None)
+    assert "task-detail-001" in html
+    assert "gen-feature-abc" in html
+    assert "success" in html
+    assert "Test Gate" not in html
+
+
+def test_task_detail_renders_with_test_gate_scoped(jinja_env):
+    """Task detail template renders test_gate section for scoped tests."""
+    task = {
+        "id": "task-detail-002",
+        "name": "gen-scoped-task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": True,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 0,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Test Gate" in html
+    assert "Scoped" in html
+    assert "badge-scoped" in html
+    assert "env_check" in html
+    assert "test" in html
+
+
+def test_task_detail_renders_with_test_gate_full(jinja_env):
+    """Task detail template renders 'Full' badge when test_gate.scoped=False."""
+    task = {
+        "id": "task-detail-003",
+        "name": "gen-full-test-task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": False,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 0,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Test Gate" in html
+    assert "Full" in html
+    assert "badge-full-tests" in html
+
+
+def test_task_detail_renders_failed_step_env_check(jinja_env):
+    """Shows 'Env check failed' when test_gate.failed_step='env_check'."""
+    task = {
+        "id": "task-detail-004",
+        "name": "gen-env-fail",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "failed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:02:00",
+        "retry_count": 1,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": False,
+        "steps_run": ["env_check"],
+        "failed_step": "env_check",
+        "setup_retries": 3,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Env check failed" in html
+    assert "3" in html  # setup retries count
+
+
+def test_task_detail_renders_failed_step_test(jinja_env):
+    """Shows 'Test failed' when test_gate.failed_step='test'."""
+    task = {
+        "id": "task-detail-005",
+        "name": "gen-test-fail",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "failed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:03:00",
+        "retry_count": 1,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": True,
+        "steps_run": ["env_check", "test"],
+        "failed_step": "test",
+        "setup_retries": 0,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Test failed" in html
+    assert "badge-red" in html
+
+
+def test_task_detail_renders_setup_retries(jinja_env):
+    """Shows setup retry count with badge when > 0."""
+    task = {
+        "id": "task-detail-006",
+        "name": "gen-retry-task",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": False,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 2,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Setup Retries" in html
+    assert "2 retries" in html
+    assert "badge-yellow" in html
+
+
+def test_task_detail_hides_setup_retries_when_zero(jinja_env):
+    """Does NOT show setup retries row when setup_retries is 0."""
+    task = {
+        "id": "task-detail-007",
+        "name": "gen-no-retry",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": False,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 0,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "Setup Retries" not in html
+
+
+def test_task_detail_renders_with_telemetry(jinja_env):
+    """Task detail shows telemetry section when present."""
+    task = {
+        "id": "task-detail-008",
+        "name": "gen-with-telemetry",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    telemetry = {
+        "api_calls": 5,
+        "total_input_tokens": 25000,
+        "total_output_tokens": 35000,
+        "total_cost_usd": 0.30,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=telemetry, test_gate=None)
+    assert "Telemetry" in html
+    assert "25,000" in html
+    assert "35,000" in html
+
+
+def test_task_detail_single_retry_singular(jinja_env):
+    """Shows '1 retry' (singular) when setup_retries=1."""
+    task = {
+        "id": "task-detail-009",
+        "name": "gen-single-retry",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": True,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 1,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "1 retry" in html
+    # Should not say "1 retries"
+    assert "1 retries" not in html
+
+
+def test_task_detail_step_success_badges(jinja_env):
+    """Passing steps show green ✓ badges."""
+    task = {
+        "id": "task-detail-010",
+        "name": "gen-all-pass",
+        "type": "code-gen",
+        "project": "acme",
+        "status": "completed",
+        "claimed_by": "node-gpu-01",
+        "submitted_at": "2026-04-06 09:00:00",
+        "started_at": "2026-04-06 09:01:00",
+        "completed_at": "2026-04-06 09:05:00",
+        "retry_count": 0,
+        "max_retries": 3,
+        "resource_class": "cpu",
+    }
+    test_gate = {
+        "scoped": False,
+        "steps_run": ["env_check", "test"],
+        "failed_step": None,
+        "setup_retries": 0,
+    }
+    html = render(jinja_env, "task_detail.html", task=task, result=None, telemetry=None, test_gate=test_gate)
+    assert "badge-green" in html
+    assert "✓" in html
