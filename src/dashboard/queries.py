@@ -545,11 +545,11 @@ async def get_security_overview(conn) -> dict:
     try:
         async with conn.cursor(aiomysql.DictCursor) as cur:
             await cur.execute(
-                """SELECT COUNT(*) AS total_invocations,
-                          SUM(CASE WHEN risk_level IN ('high','critical') THEN 1 ELSE 0 END) AS high_flags,
-                          SUM(CASE WHEN decision = 'block' THEN 1 ELSE 0 END) AS blocks
-                   FROM tool_invocations
-                   WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
+                """SELECT SUM(total_invocations) AS total_invocations,
+                          SUM(high_count + critical_count) AS high_flags,
+                          SUM(block_count) AS blocks
+                   FROM audit_sessions
+                   WHERE pushed_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"""
             )
             inv = await cur.fetchone() or {}
             await cur.execute(
@@ -701,11 +701,11 @@ async def get_security_timeline(conn, hours: int = 168) -> list[dict]:
             await cur.execute(
                 """
                 SELECT
-                    DATE_FORMAT(timestamp, '%%Y-%%m-%%d %%H:00') AS hour_bucket,
-                    SUM(CASE WHEN risk_level = 'high' THEN 1 ELSE 0 END) AS high_count,
-                    SUM(CASE WHEN risk_level = 'critical' THEN 1 ELSE 0 END) AS critical_count
-                FROM tool_invocations
-                WHERE timestamp > DATE_SUB(NOW(), INTERVAL %s HOUR)
+                    DATE_FORMAT(pushed_at, '%%Y-%%m-%%d %%H:00') AS hour_bucket,
+                    SUM(high_count) AS high_count,
+                    SUM(critical_count) AS critical_count
+                FROM audit_sessions
+                WHERE pushed_at > DATE_SUB(NOW(), INTERVAL %s HOUR)
                 GROUP BY hour_bucket
                 ORDER BY hour_bucket ASC
                 """,
