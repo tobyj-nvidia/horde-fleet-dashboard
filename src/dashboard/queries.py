@@ -220,23 +220,48 @@ async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-async def get_token_spend_summary(conn, period_days: int = 1) -> list[dict]:
-    """Per source/model token usage and cost from task_telemetry."""
+async def get_token_spend_summary(conn, days=1) -> dict:
+    """Aggregate token usage and cost from task_telemetry with breakdown."""
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
-            SELECT source, model,
-                   SUM(input_tokens + output_tokens) AS total_tokens,
-                   SUM(estimated_cost_usd) AS total_cost_usd
+            SELECT
+                COALESCE(SUM(input_tokens), 0) AS total_input,
+                COALESCE(SUM(output_tokens), 0) AS total_output,
+                COALESCE(SUM(input_tokens + output_tokens), 0) AS total_tokens,
+                COALESCE(SUM(estimated_cost_usd), 0) AS total_cost,
+                COUNT(*) AS total_rows
             FROM task_telemetry
-            WHERE recorded_at >= NOW() - INTERVAL %s DAY
-            GROUP BY source, model
-            ORDER BY total_cost_usd DESC
+            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
             """,
-            (period_days,),
+            (days,),
         )
-        rows = await cur.fetchall()
-    return [dict(row) for row in rows]
+        row = await cur.fetchone() or {}
+    # Also get breakdown by source + provider + model
+    async with conn.cursor(aiomysql.DictCursor) as cur:
+        await cur.execute(
+            """
+            SELECT source, provider, model,
+                   SUM(input_tokens) AS input_tok,
+                   SUM(output_tokens) AS output_tok,
+                   SUM(estimated_cost_usd) AS cost
+            FROM task_telemetry
+            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            GROUP BY source, provider, model
+            ORDER BY cost DESC
+            """,
+            (days,),
+        )
+        breakdown = await cur.fetchall()
+    return {
+        'total_input': row.get('total_input', 0),
+        'total_output': row.get('total_output', 0),
+        'total_tokens': row.get('total_tokens', 0),
+        'total_cost': float(row.get('total_cost', 0) or 0),
+        'total_rows': row.get('total_rows', 0),
+        'breakdown': [dict(r) for r in (breakdown or [])],
+        'days': days,
+    }
 
 
 async def get_token_spend(conn, window_days: int = 7) -> list[dict]:

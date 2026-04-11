@@ -76,6 +76,24 @@ async def test_fragment_tokens(client):
 
 
 @pytest.mark.asyncio
+async def test_fragment_token_spend(client):
+    html = await _get_ok(client, "/fragments/token-spend")
+    assert "Total Tokens" in html or "No data" in html
+
+
+@pytest.mark.asyncio
+async def test_fragment_token_spend_period_7(client):
+    html = await _get_ok(client, "/fragments/token-spend?period=7")
+    assert "7d" in html
+
+
+@pytest.mark.asyncio
+async def test_fragment_token_spend_period_30(client):
+    html = await _get_ok(client, "/fragments/token-spend?period=30")
+    assert "30d" in html
+
+
+@pytest.mark.asyncio
 async def test_fragment_failures(client):
     html = await _get_ok(client, "/fragments/failures")
     assert html.strip() != ""

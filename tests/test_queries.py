@@ -226,35 +226,52 @@ async def test_get_duration_percentiles_keys(db_conn):
 # get_token_spend_summary
 # ---------------------------------------------------------------------------
 
-TOKEN_SPEND_SUMMARY_REQUIRED_COLUMNS = {"source", "model", "total_tokens", "total_cost_usd"}
+TOKEN_SPEND_SUMMARY_REQUIRED_KEYS = {"total_input", "total_output", "total_tokens", "total_cost", "total_rows", "breakdown", "days"}
 
 
 @pytest.mark.asyncio
 async def test_get_token_spend_summary_no_error(db_conn):
     result = await get_token_spend_summary(db_conn)
-    assert isinstance(result, list)
+    assert isinstance(result, dict)
 
 
 @pytest.mark.asyncio
-async def test_get_token_spend_summary_columns(db_conn):
+async def test_get_token_spend_summary_keys(db_conn):
     result = await get_token_spend_summary(db_conn)
-    if not result:
-        pytest.skip("No telemetry data — column check skipped")
-    for row in result:
-        missing = TOKEN_SPEND_SUMMARY_REQUIRED_COLUMNS - set(row.keys())
-        assert not missing, f"Token spend summary row missing columns: {missing}"
+    missing = TOKEN_SPEND_SUMMARY_REQUIRED_KEYS - set(result.keys())
+    assert not missing, f"Token spend summary missing keys: {missing}"
 
 
 @pytest.mark.asyncio
-async def test_get_token_spend_summary_period_7(db_conn):
-    result = await get_token_spend_summary(db_conn, period_days=7)
-    assert isinstance(result, list)
+async def test_get_token_spend_summary_breakdown_columns(db_conn):
+    result = await get_token_spend_summary(db_conn)
+    breakdown = result.get("breakdown", [])
+    if not breakdown:
+        pytest.skip("No telemetry data — breakdown column check skipped")
+    required = {"source", "provider", "model", "input_tok", "output_tok", "cost"}
+    for row in breakdown:
+        missing = required - set(row.keys())
+        assert not missing, f"Token spend breakdown row missing columns: {missing}"
 
 
 @pytest.mark.asyncio
-async def test_get_token_spend_summary_period_30(db_conn):
-    result = await get_token_spend_summary(db_conn, period_days=30)
-    assert isinstance(result, list)
+async def test_get_token_spend_summary_days_7(db_conn):
+    result = await get_token_spend_summary(db_conn, days=7)
+    assert isinstance(result, dict)
+    assert result["days"] == 7
+
+
+@pytest.mark.asyncio
+async def test_get_token_spend_summary_days_30(db_conn):
+    result = await get_token_spend_summary(db_conn, days=30)
+    assert isinstance(result, dict)
+    assert result["days"] == 30
+
+
+@pytest.mark.asyncio
+async def test_get_token_spend_summary_total_cost_is_float(db_conn):
+    result = await get_token_spend_summary(db_conn)
+    assert isinstance(result["total_cost"], float)
 
 
 # ---------------------------------------------------------------------------

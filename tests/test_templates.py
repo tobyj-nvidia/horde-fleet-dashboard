@@ -493,24 +493,29 @@ def test_tokens_renders(jinja_env, sample_token_rows):
 # ---------------------------------------------------------------------------
 
 def test_token_spend_renders_with_data(jinja_env):
-    rows = [
-        {"source": "task", "model": "claude-sonnet-4-6", "total_tokens": 50000, "total_cost_usd": 0.25},
-        {"source": "gateway", "model": "claude-haiku-4-5", "total_tokens": 10000, "total_cost_usd": 0.05},
+    breakdown = [
+        {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tok": 30000, "output_tok": 20000, "cost": 0.25},
+        {"source": "gateway", "provider": "anthropic", "model": "claude-haiku-4-5", "input_tok": 5000, "output_tok": 5000, "cost": 0.05},
     ]
     html = render(
         jinja_env, "fragments/token_spend.html",
-        rows=rows, total_tokens=60000, total_cost_usd=0.30, period=1,
+        breakdown=breakdown, total_tokens=60000, total_input=35000, total_output=25000,
+        total_cost=0.30, total_rows=42, period=1,
     )
     assert "task" in html
     assert "gateway" in html
+    assert "anthropic" in html
     assert "claude-sonnet-4-6" in html
     assert "0.3000" in html
+    assert "60,000" in html
+    assert "42" in html
 
 
 def test_token_spend_empty(jinja_env):
     html = render(
         jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
+        breakdown=[], total_tokens=0, total_input=0, total_output=0,
+        total_cost=0.0, total_rows=0, period=1,
     )
     assert "No data" in html
 
@@ -518,7 +523,8 @@ def test_token_spend_empty(jinja_env):
 def test_token_spend_period_selector_shows_active(jinja_env):
     html = render(
         jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=7,
+        breakdown=[], total_tokens=0, total_input=0, total_output=0,
+        total_cost=0.0, total_rows=0, period=7,
     )
     assert "7d" in html
     assert "active" in html
@@ -527,7 +533,8 @@ def test_token_spend_period_selector_shows_active(jinja_env):
 def test_token_spend_all_periods_present(jinja_env):
     html = render(
         jinja_env, "fragments/token_spend.html",
-        rows=[], total_tokens=0, total_cost_usd=0.0, period=1,
+        breakdown=[], total_tokens=0, total_input=0, total_output=0,
+        total_cost=0.0, total_rows=0, period=1,
     )
     assert "1d" in html
     assert "7d" in html
@@ -535,15 +542,46 @@ def test_token_spend_all_periods_present(jinja_env):
 
 
 def test_token_spend_source_badge_rendered(jinja_env):
-    rows = [
-        {"source": "cron", "model": "claude-opus-4-6", "total_tokens": 1000, "total_cost_usd": 0.10},
+    breakdown = [
+        {"source": "cron", "provider": "openai", "model": "claude-opus-4-6", "input_tok": 500, "output_tok": 500, "cost": 0.10},
     ]
     html = render(
         jinja_env, "fragments/token_spend.html",
-        rows=rows, total_tokens=1000, total_cost_usd=0.10, period=1,
+        breakdown=breakdown, total_tokens=1000, total_input=500, total_output=500,
+        total_cost=0.10, total_rows=1, period=1,
     )
     assert "source-badge-cron" in html
     assert "cron" in html
+
+
+def test_token_spend_summary_tiles_present(jinja_env):
+    breakdown = [
+        {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tok": 10000, "output_tok": 5000, "cost": 0.15},
+    ]
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        breakdown=breakdown, total_tokens=15000, total_input=10000, total_output=5000,
+        total_cost=0.15, total_rows=5, period=1,
+    )
+    assert "Total Tokens" in html
+    assert "Total Cost USD" in html
+    assert "Rows" in html
+    assert "15,000" in html
+    assert "$0.1500" in html
+    assert "5" in html
+
+
+def test_token_spend_breakdown_shows_provider(jinja_env):
+    breakdown = [
+        {"source": "task", "provider": "anthropic", "model": "claude-sonnet-4-6", "input_tok": 1000, "output_tok": 500, "cost": 0.05},
+    ]
+    html = render(
+        jinja_env, "fragments/token_spend.html",
+        breakdown=breakdown, total_tokens=1500, total_input=1000, total_output=500,
+        total_cost=0.05, total_rows=1, period=1,
+    )
+    assert "Provider" in html
+    assert "anthropic" in html
 
 
 # ---------------------------------------------------------------------------

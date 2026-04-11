@@ -5,31 +5,44 @@
     <a hx-get="/fragments/token-spend?period=30" hx-target="closest .fragment-token-spend" hx-swap="outerHTML" class="period-btn{% if period == 30 %} active{% endif %}">30d</a>
   </div>
   <div class="token-spend-summary">
-    <span class="token-total">{{ total_tokens }} tokens</span>
-    <span class="cost-total">${{ "%.4f"|format(total_cost_usd) }}</span>
+    <div class="summary-tile">
+      <span class="tile-label">Total Tokens</span>
+      <span class="tile-value token-total">{{ "{:,}".format(total_tokens) }}</span>
+    </div>
+    <div class="summary-tile">
+      <span class="tile-label">Total Cost USD</span>
+      <span class="tile-value cost-total">${{ "%.4f"|format(total_cost) }}</span>
+    </div>
+    <div class="summary-tile">
+      <span class="tile-label">Rows</span>
+      <span class="tile-value rows-total">{{ "{:,}".format(total_rows) }}</span>
+    </div>
   </div>
-  {% if not rows %}
+  {% if not breakdown %}
     <p class="no-data">No data</p>
   {% else %}
     <table class="metric-table">
       <thead>
-        <tr><th>Source</th><th>Model</th><th>Tokens</th><th>USD</th></tr>
+        <tr><th>Source</th><th>Provider</th><th>Model</th><th>Input</th><th>Output</th><th>USD</th></tr>
       </thead>
       <tbody>
-      {% for r in rows %}
+      {% for r in breakdown %}
         <tr>
           <td><span class="badge source-badge-{{ r.source or 'unknown' }}">{{ r.source or '—' }}</span></td>
+          <td>{{ r.provider or '—' }}</td>
           <td>{{ r.model }}</td>
-          <td>{{ r.total_tokens }}</td>
-          <td>${{ "%.4f"|format(r.total_cost_usd or 0) }}</td>
+          <td>{{ "{:,}".format(r.input_tok) }}</td>
+          <td>{{ "{:,}".format(r.output_tok) }}</td>
+          <td>${{ "%.4f"|format(r.cost) }}</td>
         </tr>
       {% endfor %}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="2"><strong>Total</strong></td>
-          <td><strong>{{ total_tokens }}</strong></td>
-          <td><strong>${{ "%.4f"|format(total_cost_usd) }}</strong></td>
+          <td colspan="3"><strong>Total</strong></td>
+          <td><strong>{{ "{:,}".format(total_input) }}</strong></td>
+          <td><strong>{{ "{:,}".format(total_output) }}</strong></td>
+          <td><strong>${{ "%.4f"|format(total_cost) }}</strong></td>
         </tr>
       </tfoot>
     </table>

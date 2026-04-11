@@ -112,19 +112,22 @@ async def fragment_throughput(request: Request, conn=Depends(get_db)):
 
 @router.get("/fragments/token-spend", response_class=HTMLResponse)
 async def fragment_token_spend(request: Request, period: int = 1, conn=Depends(get_db)):
-    rows = await get_token_spend_summary(conn, period_days=period)
-    for r in rows:
-        r["total_cost_usd"] = float(r["total_cost_usd"] or 0)
-        r["total_tokens"] = int(r["total_tokens"] or 0)
-    total_tokens = sum(r["total_tokens"] for r in rows)
-    total_cost_usd = sum(r["total_cost_usd"] for r in rows)
+    data = await get_token_spend_summary(conn, days=period)
+    breakdown = data.get("breakdown", [])
+    for r in breakdown:
+        r["cost"] = float(r.get("cost") or 0)
+        r["input_tok"] = int(r.get("input_tok") or 0)
+        r["output_tok"] = int(r.get("output_tok") or 0)
     return templates.TemplateResponse(
         "fragments/token_spend.html",
         {
             "request": request,
-            "rows": rows,
-            "total_tokens": total_tokens,
-            "total_cost_usd": total_cost_usd,
+            "total_tokens": data.get("total_tokens", 0),
+            "total_input": data.get("total_input", 0),
+            "total_output": data.get("total_output", 0),
+            "total_cost": data.get("total_cost", 0.0),
+            "total_rows": data.get("total_rows", 0),
+            "breakdown": breakdown,
             "period": period,
         },
     )
