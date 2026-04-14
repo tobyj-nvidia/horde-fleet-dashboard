@@ -271,6 +271,139 @@ async def test_get_token_spend_summary_days_30(db_conn):
     assert result["days"] == 30
 
 
+def test_get_token_spend_summary_no_double_counting():
+    """Regression: cumulative telemetry snapshots must not be SUM'd directly.
+
+    task_telemetry stores CUMULATIVE token counts per task (each row is a
+    running total).  If a task has 3 snapshots with input_tokens 1000, 3000,
+    5000 then the real total is MAX=5000, not SUM=9000.
+
+    This test verifies get_token_spend_summary uses MAX per task_id.
+    """
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_token_spend_summary
+
+    # Track all SQL executed
+    executed_sql = []
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed_sql.append(sql.lower())
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    mock_cur.fetchone = AsyncMock(return_value={
+        'total_input': 5000, 'total_output': 2000,
+        'total_tokens': 7000, 'total_cost': 0.10, 'total_rows': 3,
+    })
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(
+        get_token_spend_summary(mock_conn, days=1)
+    )
+
+    # Both queries (summary + breakdown) must use MAX per task subquery
+    for sql in executed_sql:
+        assert 'max(input_tokens)' in sql, (
+            "get_token_spend_summary SQL must use MAX(input_tokens) per task_id "
+            "to avoid double-counting cumulative snapshots. Found raw SUM."
+        )
+        assert 'group by task_id' in sql, (
+            "get_token_spend_summary SQL must GROUP BY task_id in subquery "
+            "to de-duplicate cumulative snapshots."
+        )
+
+
+def test_get_token_spend_no_double_counting():
+    """Regression: get_token_spend must use MAX per task_id, not raw SUM."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_token_spend
+
+    executed_sql = []
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed_sql.append(sql.lower())
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_token_spend(mock_conn))
+
+    assert len(executed_sql) == 1
+    sql = executed_sql[0]
+    assert 'group by task_id' in sql, (
+        "get_token_spend SQL must GROUP BY task_id in subquery "
+        "to de-duplicate cumulative telemetry snapshots."
+    )
+    # Must not have raw SUM(input_tokens) or SUM(estimated_cost_usd)
+    assert 'sum(input_tokens' not in sql, (
+        "get_token_spend must not use raw SUM(input_tokens) — "
+        "telemetry rows are cumulative snapshots, use MAX per task_id."
+    )
+    assert 'sum(estimated_cost_usd' not in sql, (
+        "get_token_spend must not use raw SUM(estimated_cost_usd) — "
+        "telemetry rows are cumulative snapshots, use MAX per task_id."
+    )
+
+
+def test_get_task_telemetry_uses_max():
+    """Regression: get_task single-task telemetry must use MAX, not SUM."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_task
+
+    executed_sql = []
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed_sql.append(sql.lower())
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    # First call: task row, second: result row, third: telemetry
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        {'id': 'task-1', 'name': 'test', 'status': 'completed'},  # task
+        {'outcome': 'success'},  # result
+        {'total_input_tokens': 5000, 'total_output_tokens': 2000,
+         'total_cost_usd': 0.10, 'api_calls': 3},  # telemetry
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_task(mock_conn, 'task-1'))
+
+    # Find the telemetry query (the one with task_telemetry)
+    telemetry_sql = [s for s in executed_sql if 'task_telemetry' in s]
+    assert telemetry_sql, "Expected a query against task_telemetry"
+    sql = telemetry_sql[0]
+    assert 'max(input_tokens)' in sql, (
+        "get_task telemetry query must use MAX(input_tokens), not SUM"
+    )
+    assert 'max(output_tokens)' in sql, (
+        "get_task telemetry query must use MAX(output_tokens), not SUM"
+    )
+    assert 'sum(input_tokens' not in sql, (
+        "get_task must not use SUM(input_tokens) — rows are cumulative snapshots"
+    )
+
+
 # ---------------------------------------------------------------------------
 # get_token_spend
 # ---------------------------------------------------------------------------
