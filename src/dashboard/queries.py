@@ -229,31 +229,48 @@ async def get_token_spend_summary(conn, days: int = 1) -> dict:
       - days: the period requested
     """
     async with conn.cursor(aiomysql.DictCursor) as cur:
-        # Summary totals
+        # Summary totals — use MAX per task to avoid double-counting
+        # cumulative snapshots, then SUM across tasks.
         await cur.execute(
             """
             SELECT
-                COALESCE(SUM(input_tokens), 0) AS total_input,
-                COALESCE(SUM(output_tokens), 0) AS total_output,
-                COALESCE(SUM(input_tokens + output_tokens), 0) AS total_tokens,
-                COALESCE(SUM(estimated_cost_usd), 0) AS total_cost,
-                COUNT(*) AS total_rows
-            FROM task_telemetry
-            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                COALESCE(SUM(max_input), 0) AS total_input,
+                COALESCE(SUM(max_output), 0) AS total_output,
+                COALESCE(SUM(max_input + max_output), 0) AS total_tokens,
+                COALESCE(SUM(max_cost), 0) AS total_cost,
+                COALESCE(SUM(row_count), 0) AS total_rows
+            FROM (
+                SELECT task_id,
+                       MAX(input_tokens) AS max_input,
+                       MAX(output_tokens) AS max_output,
+                       MAX(estimated_cost_usd) AS max_cost,
+                       COUNT(*) AS row_count
+                FROM task_telemetry
+                WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                GROUP BY task_id
+            ) per_task
             """,
             (days,),
         )
         summary_row = await cur.fetchone()
 
-        # Breakdown by source, provider, model
+        # Breakdown by source, provider, model — use MAX per task to
+        # avoid double-counting cumulative snapshots.
         await cur.execute(
             """
             SELECT source, provider, model,
-                   SUM(input_tokens) AS input_tokens,
-                   SUM(output_tokens) AS output_tokens,
-                   SUM(estimated_cost_usd) AS cost
-            FROM task_telemetry
-            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                   SUM(max_input) AS input_tokens,
+                   SUM(max_output) AS output_tokens,
+                   SUM(max_cost) AS cost
+            FROM (
+                SELECT task_id, source, provider, model,
+                       MAX(input_tokens) AS max_input,
+                       MAX(output_tokens) AS max_output,
+                       MAX(estimated_cost_usd) AS max_cost
+                FROM task_telemetry
+                WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                GROUP BY task_id, source, provider, model
+            ) per_task
             GROUP BY source, provider, model
             ORDER BY cost DESC
             """,
@@ -281,10 +298,16 @@ async def get_token_spend(conn, window_days: int = 7) -> list[dict]:
             SELECT
                 provider,
                 model,
-                SUM(input_tokens + output_tokens) AS total_tokens,
-                SUM(estimated_cost_usd) AS total_usd
-            FROM task_telemetry
-            WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                SUM(max_tokens) AS total_tokens,
+                SUM(max_cost) AS total_usd
+            FROM (
+                SELECT task_id, provider, model,
+                       MAX(input_tokens + output_tokens) AS max_tokens,
+                       MAX(estimated_cost_usd) AS max_cost
+                FROM task_telemetry
+                WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+                GROUP BY task_id, provider, model
+            ) per_task
             GROUP BY provider, model
             ORDER BY total_usd DESC
             """,
@@ -314,9 +337,9 @@ async def get_task(conn, task_id: str) -> dict | None:
         await cur.execute(
             """
             SELECT
-                SUM(input_tokens) AS total_input_tokens,
-                SUM(output_tokens) AS total_output_tokens,
-                SUM(cost_usd) AS total_cost_usd,
+                MAX(input_tokens) AS total_input_tokens,
+                MAX(output_tokens) AS total_output_tokens,
+                MAX(cost_usd) AS total_cost_usd,
                 COUNT(*) AS api_calls
             FROM task_telemetry
             WHERE task_id = %s
