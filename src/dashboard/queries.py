@@ -199,15 +199,14 @@ async def get_duration_percentiles(conn, window_days: int = 7) -> dict:
 async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
     """Daily failure rate based on final task outcomes only.
 
-    Uses the same terminal-state filtering as get_throughput() so that the
-    denominator (total finished tasks) is consistent between the two views:
-      - 'completed' tasks count as successes
-      - 'failed' tasks only when retry_count >= max_retries (exhausted)
-      - 'dead-letter' tasks count as failures
+    Uses the same terminal-state logic as get_throughput() so that:
+      - A retried task that eventually succeeded counts as 1 success, not
+        as 1 failure + 1 success.
+      - Dead-lettered originals whose retry succeeded are excluded.
+      - The denominator (total) is consistent with throughput.
 
-    Intermediate failures (tasks still retrying) are excluded so that a
-    retried task that eventually succeeds is counted once as a success, not
-    as 1 failure + 1 success.
+    Queries the *tasks* table (not task_results) to avoid double-counting
+    intermediate retry attempts.
     """
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
@@ -219,11 +218,13 @@ async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
                          THEN 1 ELSE 0 END)
                 + SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS failures,
                 ROUND(
-                    100.0 * (
+                    100.0
+                    * (
                         SUM(CASE WHEN status = %s AND retry_count >= max_retries
                                  THEN 1 ELSE 0 END)
                         + SUM(CASE WHEN status = %s THEN 1 ELSE 0 END)
-                    ) / COUNT(*),
+                    )
+                    / COUNT(*),
                     2
                 ) AS failure_pct
             FROM tasks

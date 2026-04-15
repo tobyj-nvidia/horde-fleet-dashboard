@@ -207,169 +207,6 @@ async def test_get_failure_rate_columns(db_conn):
 
 
 # ---------------------------------------------------------------------------
-# Throughput / failure-rate alignment
-# ---------------------------------------------------------------------------
-
-
-def test_failure_rate_queries_tasks_table_not_task_results():
-    """Regression: get_failure_rate must query the tasks table (like get_throughput)
-    not the task_results table, so both metrics use the same denominator and
-    don't double-count retried tasks."""
-    import asyncio
-    from unittest.mock import AsyncMock, MagicMock
-    from src.dashboard.queries import get_failure_rate
-
-    executed_sql = []
-
-    mock_cur = AsyncMock()
-    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
-    mock_cur.__aexit__ = AsyncMock(return_value=False)
-
-    async def fake_execute(sql, args=None):
-        executed_sql.append(sql.lower())
-
-    mock_cur.execute = AsyncMock(side_effect=fake_execute)
-    mock_cur.fetchall = AsyncMock(return_value=[])
-
-    mock_conn = MagicMock()
-    mock_conn.cursor = MagicMock(return_value=mock_cur)
-
-    asyncio.get_event_loop().run_until_complete(get_failure_rate(mock_conn))
-
-    assert len(executed_sql) == 1
-    sql = executed_sql[0]
-    assert 'from tasks' in sql, (
-        "get_failure_rate must query the 'tasks' table (not task_results) "
-        "to use the same denominator as get_throughput"
-    )
-    assert 'from task_results' not in sql, (
-        "get_failure_rate must NOT query task_results — that table has one "
-        "row per attempt, causing retried tasks to be double-counted"
-    )
-
-
-def test_failure_rate_excludes_still_retrying_tasks():
-    """get_failure_rate must exclude tasks still retrying (status='failed'
-    with retry_count < max_retries) — only count exhausted failures."""
-    import asyncio
-    from unittest.mock import AsyncMock, MagicMock
-    from src.dashboard.queries import get_failure_rate
-
-    executed_sql = []
-
-    mock_cur = AsyncMock()
-    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
-    mock_cur.__aexit__ = AsyncMock(return_value=False)
-
-    async def fake_execute(sql, args=None):
-        executed_sql.append(sql.lower())
-
-    mock_cur.execute = AsyncMock(side_effect=fake_execute)
-    mock_cur.fetchall = AsyncMock(return_value=[])
-
-    mock_conn = MagicMock()
-    mock_conn.cursor = MagicMock(return_value=mock_cur)
-
-    asyncio.get_event_loop().run_until_complete(get_failure_rate(mock_conn))
-
-    sql = executed_sql[0]
-    assert 'retry_count >= max_retries' in sql, (
-        "get_failure_rate must filter failed tasks by retry_count >= max_retries "
-        "to exclude tasks that are still being retried"
-    )
-
-
-def test_throughput_and_failure_rate_use_same_terminal_states():
-    """get_throughput and get_failure_rate must use the same terminal-state
-    WHERE clause so their totals are consistent."""
-    import asyncio
-    from unittest.mock import AsyncMock, MagicMock
-    from src.dashboard.queries import get_throughput, get_failure_rate
-
-    def _capture_sql(func):
-        executed_sql = []
-
-        mock_cur = AsyncMock()
-        mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
-        mock_cur.__aexit__ = AsyncMock(return_value=False)
-
-        async def fake_execute(sql, args=None):
-            executed_sql.append(sql.lower())
-
-        mock_cur.execute = AsyncMock(side_effect=fake_execute)
-        mock_cur.fetchall = AsyncMock(return_value=[])
-
-        mock_conn = MagicMock()
-        mock_conn.cursor = MagicMock(return_value=mock_cur)
-
-        asyncio.get_event_loop().run_until_complete(func(mock_conn))
-        return executed_sql[0]
-
-    throughput_sql = _capture_sql(get_throughput)
-    failure_sql = _capture_sql(get_failure_rate)
-
-    # Both must query from tasks (not task_results)
-    assert 'from tasks' in throughput_sql
-    assert 'from tasks' in failure_sql
-
-    # Both must filter on the same terminal states
-    for sql, name in [(throughput_sql, 'throughput'), (failure_sql, 'failure_rate')]:
-        assert "status = %s" in sql or "status =" in sql, (
-            f"{name} must filter by status"
-        )
-        assert 'retry_count >= max_retries' in sql, (
-            f"{name} must filter failed tasks by retry_count >= max_retries"
-        )
-
-
-@pytest.mark.asyncio
-async def test_failure_rate_totals_consistent_with_throughput(db_conn):
-    """On the same day, get_failure_rate().total must equal get_throughput().total."""
-    throughput_rows = await get_throughput(db_conn)
-    failure_rows = await get_failure_rate(db_conn)
-
-    throughput_by_date = {str(r["date"]): r["total"] for r in throughput_rows}
-    failure_by_date = {str(r["date"]): r["total"] for r in failure_rows}
-
-    # Check all dates that appear in both
-    common_dates = set(throughput_by_date.keys()) & set(failure_by_date.keys())
-    for date in common_dates:
-        assert throughput_by_date[date] == failure_by_date[date], (
-            f"On {date}, throughput total ({throughput_by_date[date]}) != "
-            f"failure_rate total ({failure_by_date[date]}). "
-            "The two metrics must use the same denominator."
-        )
-
-    # Also check they cover the same dates
-    assert set(throughput_by_date.keys()) == set(failure_by_date.keys()), (
-        f"throughput dates {set(throughput_by_date.keys())} != "
-        f"failure_rate dates {set(failure_by_date.keys())}. "
-        "Both should cover the same terminal-state tasks."
-    )
-
-
-@pytest.mark.asyncio
-async def test_failure_rate_failures_match_throughput_failures(db_conn):
-    """failure_rate.failures must equal throughput.failure + throughput.dead_letter."""
-    throughput_rows = await get_throughput(db_conn)
-    failure_rows = await get_failure_rate(db_conn)
-
-    throughput_by_date = {
-        str(r["date"]): r["failure"] + r["dead_letter"]
-        for r in throughput_rows
-    }
-    failure_by_date = {str(r["date"]): r["failures"] for r in failure_rows}
-
-    common_dates = set(throughput_by_date.keys()) & set(failure_by_date.keys())
-    for date in common_dates:
-        assert throughput_by_date[date] == failure_by_date[date], (
-            f"On {date}, throughput failure+dead_letter ({throughput_by_date[date]}) != "
-            f"failure_rate failures ({failure_by_date[date]}). "
-            "Both metrics must count the same failures."
-        )
-
-
-# ---------------------------------------------------------------------------
 # get_duration_percentiles
 # ---------------------------------------------------------------------------
 
@@ -1070,3 +907,227 @@ def test_get_recent_failed_time_window_in_sql():
         f"window_days=3 should appear in query params, got {args!r}"
     )
     assert "interval" in sql, "Query must use INTERVAL for time windowing"
+
+
+# ---------------------------------------------------------------------------
+# Throughput / failure-rate alignment tests
+# ---------------------------------------------------------------------------
+
+
+def test_failure_rate_queries_tasks_table_not_task_results():
+    """get_failure_rate must query the tasks table (not task_results) to avoid
+    double-counting intermediate retry attempts.
+
+    The old implementation queried task_results which has one row per attempt,
+    inflating failure counts when a task was retried.
+    """
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_failure_rate
+
+    executed_sql = []
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed_sql.append(sql.lower())
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_failure_rate(mock_conn))
+
+    assert len(executed_sql) == 1
+    sql = executed_sql[0]
+    assert 'from tasks' in sql, (
+        "get_failure_rate must query 'tasks' table, not 'task_results'. "
+        "task_results has one row per retry attempt which inflates failure counts."
+    )
+    assert 'task_results' not in sql, (
+        "get_failure_rate must NOT query task_results — it double-counts retries."
+    )
+
+
+def test_failure_rate_uses_terminal_state_filter():
+    """get_failure_rate must filter for terminal states only (completed, failed
+    with max retries exhausted, dead-letter) — matching get_throughput."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_failure_rate
+
+    executed_sql = []
+    executed_args = []
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed_sql.append(sql.lower())
+        executed_args.append(args)
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    mock_cur.fetchall = AsyncMock(return_value=[])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    asyncio.get_event_loop().run_until_complete(get_failure_rate(mock_conn))
+
+    sql = executed_sql[0]
+    args = executed_args[0]
+    # Must filter for retry_count >= max_retries to exclude tasks still retrying
+    assert 'retry_count >= max_retries' in sql, (
+        "get_failure_rate must check retry_count >= max_retries to exclude "
+        "tasks that are still retrying and haven't reached terminal failure."
+    )
+    # Must include dead-letter in the parameters (passed via %s)
+    assert 'dead-letter' in args, (
+        "get_failure_rate must include dead-letter tasks in its filter parameters."
+    )
+
+
+def test_throughput_and_failure_rate_use_same_source_table():
+    """Both get_throughput and get_failure_rate must query the same table
+    so their denominators are consistent."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_throughput, get_failure_rate
+
+    def capture_sql(func):
+        executed = []
+        executed_a = []
+        mock_cur = AsyncMock()
+        mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+        mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+        async def fake_execute(sql, args=None):
+            executed.append(sql.lower())
+            executed_a.append(args)
+
+        mock_cur.execute = AsyncMock(side_effect=fake_execute)
+        mock_cur.fetchall = AsyncMock(return_value=[])
+
+        mock_conn = MagicMock()
+        mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+        asyncio.get_event_loop().run_until_complete(func(mock_conn))
+        return executed, executed_a
+
+    throughput_sql, throughput_args = capture_sql(get_throughput)
+    failure_sql, failure_args = capture_sql(get_failure_rate)
+
+    assert len(throughput_sql) == 1
+    assert len(failure_sql) == 1
+
+    # Both must use FROM tasks (not task_results)
+    assert 'from tasks' in throughput_sql[0], (
+        "get_throughput must query the tasks table"
+    )
+    assert 'from tasks' in failure_sql[0], (
+        "get_failure_rate must query the tasks table"
+    )
+
+    # Both must use the same terminal-state WHERE clause pattern
+    for label, sql, args in [
+        ("throughput", throughput_sql[0], throughput_args[0]),
+        ("failure_rate", failure_sql[0], failure_args[0]),
+    ]:
+        assert 'retry_count >= max_retries' in sql, (
+            f"{label} must filter failed tasks by retry_count >= max_retries"
+        )
+        assert 'dead-letter' in args, (
+            f"{label} must include dead-letter in its filter parameters"
+        )
+
+
+def test_failure_rate_totals_equal_throughput_totals():
+    """Given the same mock data, the daily totals from get_failure_rate and
+    get_throughput should be identical (since both use the same denominator)."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_throughput, get_failure_rate
+
+    # Simulate 3 terminal tasks: 2 completed, 1 dead-letter
+    sample_rows_throughput = [
+        {'date': '2026-04-01', 'total': 3, 'success': 2, 'failure': 0, 'dead_letter': 1},
+    ]
+    sample_rows_failure = [
+        {'date': '2026-04-01', 'total': 3, 'failures': 1, 'failure_pct': 33.33},
+    ]
+
+    def make_conn(rows):
+        mock_cur = AsyncMock()
+        mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+        mock_cur.__aexit__ = AsyncMock(return_value=False)
+        mock_cur.fetchall = AsyncMock(return_value=rows)
+        mock_conn = MagicMock()
+        mock_conn.cursor = MagicMock(return_value=mock_cur)
+        return mock_conn
+
+    tp_result = asyncio.get_event_loop().run_until_complete(
+        get_throughput(make_conn(sample_rows_throughput))
+    )
+    fr_result = asyncio.get_event_loop().run_until_complete(
+        get_failure_rate(make_conn(sample_rows_failure))
+    )
+
+    # Both should return the same total per day
+    assert tp_result[0]['total'] == fr_result[0]['total'], (
+        f"Throughput total ({tp_result[0]['total']}) must equal "
+        f"failure rate total ({fr_result[0]['total']}) for the same day."
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_failure_rate_consistent_with_throughput(db_conn):
+    """When run against the same database, get_throughput and get_failure_rate
+    should report the same daily totals, since both count only terminal tasks."""
+    tp = await get_throughput(db_conn)
+    fr = await get_failure_rate(db_conn)
+
+    tp_by_date = {str(row['date']): row['total'] for row in tp}
+    fr_by_date = {str(row['date']): row['total'] for row in fr}
+
+    # Every date in throughput should appear in failure_rate with same total
+    for date, tp_total in tp_by_date.items():
+        fr_total = fr_by_date.get(date)
+        assert fr_total == tp_total, (
+            f"On {date}: throughput total={tp_total} but failure_rate total={fr_total}. "
+            "The two metrics must use the same denominator."
+        )
+
+    # And vice versa
+    for date, fr_total in fr_by_date.items():
+        tp_total = tp_by_date.get(date)
+        assert tp_total == fr_total, (
+            f"On {date}: failure_rate total={fr_total} but throughput total={tp_total}. "
+            "Dates should match between the two queries."
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_failure_rate_failures_equal_throughput_failure_plus_dead(db_conn):
+    """Failure rate 'failures' should equal throughput 'failure' + 'dead_letter'."""
+    tp = await get_throughput(db_conn)
+    fr = await get_failure_rate(db_conn)
+
+    tp_by_date = {str(row['date']): row for row in tp}
+    fr_by_date = {str(row['date']): row for row in fr}
+
+    for date in tp_by_date:
+        if date not in fr_by_date:
+            continue
+        tp_row = tp_by_date[date]
+        fr_row = fr_by_date[date]
+        expected_failures = tp_row['failure'] + tp_row['dead_letter']
+        assert fr_row['failures'] == expected_failures, (
+            f"On {date}: failure_rate failures={fr_row['failures']} but "
+            f"throughput failure={tp_row['failure']} + dead_letter={tp_row['dead_letter']} "
+            f"= {expected_failures}. These must match."
+        )

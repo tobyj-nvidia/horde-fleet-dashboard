@@ -148,14 +148,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         'completed_at': '2026-04-06 09:05:00',
         'failure_age_sec': 3600,
     }], None),
-    'failure_pct': (
+    'as failure_pct': (
         [
             {'date': '2026-04-01', 'total': 10, 'failures': 2, 'failure_pct': 20.0},
             {'date': '2026-04-02', 'total': 15, 'failures': 1, 'failure_pct': 6.67},
         ],
         None,
     ),
-    'group by date(completed_at)': (
+    'as success': (
         [
             {'date': '2026-04-01', 'total': 10, 'success': 8, 'failure': 2, 'dead_letter': 0},
             {'date': '2026-04-02', 'total': 15, 'success': 14, 'failure': 1, 'dead_letter': 0},
