@@ -197,24 +197,51 @@ async def get_duration_percentiles(conn, window_days: int = 7) -> dict:
 
 
 async def get_failure_rate(conn, window_days: int = 7) -> list[dict]:
-    """Daily total/failures/failure_pct from task_results."""
+    """Daily failure rate based on final task outcomes only.
+
+    Uses the same terminal-state filtering as get_throughput() so that the
+    denominator (total finished tasks) is consistent between the two views:
+      - 'completed' tasks count as successes
+      - 'failed' tasks only when retry_count >= max_retries (exhausted)
+      - 'dead-letter' tasks count as failures
+
+    Intermediate failures (tasks still retrying) are excluded so that a
+    retried task that eventually succeeds is counted once as a success, not
+    as 1 failure + 1 success.
+    """
     async with conn.cursor(aiomysql.DictCursor) as cur:
         await cur.execute(
             """
             SELECT
                 DATE(completed_at) AS date,
                 COUNT(*) AS total,
-                SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) AS failures,
+                SUM(CASE WHEN status = %s AND retry_count >= max_retries
+                         THEN 1 ELSE 0 END)
+                + SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS failures,
                 ROUND(
-                    100.0 * SUM(CASE WHEN outcome != %s THEN 1 ELSE 0 END) / COUNT(*),
+                    100.0 * (
+                        SUM(CASE WHEN status = %s AND retry_count >= max_retries
+                                 THEN 1 ELSE 0 END)
+                        + SUM(CASE WHEN status = %s THEN 1 ELSE 0 END)
+                    ) / COUNT(*),
                     2
                 ) AS failure_pct
-            FROM task_results
+            FROM tasks
             WHERE completed_at >= DATE_SUB(NOW(), INTERVAL %s DAY)
+              AND (
+                status = %s
+                OR (status = %s AND retry_count >= max_retries)
+                OR status = %s
+              )
             GROUP BY DATE(completed_at)
             ORDER BY date ASC
             """,
-            ("success", "success", window_days),
+            (
+                "failed", "dead-letter",
+                "failed", "dead-letter",
+                window_days,
+                "completed", "failed", "dead-letter",
+            ),
         )
         rows = await cur.fetchall()
     return [dict(row) for row in rows]
