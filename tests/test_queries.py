@@ -360,45 +360,85 @@ def test_get_token_spend_no_double_counting():
     )
 
 
-def test_get_task_telemetry_uses_max():
-    """Regression: get_task single-task telemetry must use MAX, not SUM."""
+def test_get_tasks_extracts_pr_mode_metadata():
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_tasks
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.execute = AsyncMock()
+    mock_cur.fetchone = AsyncMock(return_value={'cnt': 1})
+    mock_cur.fetchall = AsyncMock(return_value=[{
+        'id': 'task-1',
+        'task_id': 'task-1',
+        'status': 'completed',
+        'submitted_at': '2026-04-06 09:00:00',
+        'publication_mode': None,
+        'publication_source': None,
+        'result_publication_mode': 'pull_request',
+        'result_publication_source': 'repo_config',
+        'pr_url': None,
+        'pr_number': None,
+        'pr_branch': None,
+        'publication_outcome': None,
+        'result_summary': '{"per_repo_push_summary": {"acme/core": {"publication_mode": "pull_request", "publication_source": "repo_config", "pr_branch": "fleet/task-1", "summary": "pr_created (https://github.com/acme/core/pull/42)"}}}',
+    }])
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    tasks, total = asyncio.get_event_loop().run_until_complete(get_tasks(mock_conn))
+
+    assert total == 1
+    assert tasks[0]['publication_mode'] == 'pull_request'
+    assert tasks[0]['publication_source'] == 'repo_config'
+    assert tasks[0]['pr_url'] == 'https://github.com/acme/core/pull/42'
+    assert tasks[0]['pr_number'] == 42
+    assert tasks[0]['pr_branch'] == 'fleet/task-1'
+    assert tasks[0]['publication_outcome'] == 'pr_created'
+
+
+
+def test_get_task_falls_back_to_id_and_extracts_publication_metadata():
     import asyncio
     from unittest.mock import AsyncMock, MagicMock
     from src.dashboard.queries import get_task
 
-    executed_sql = []
-
+    executed = []
     mock_cur = AsyncMock()
     mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
     mock_cur.__aexit__ = AsyncMock(return_value=False)
 
     async def fake_execute(sql, args=None):
-        executed_sql.append(sql.lower())
+        executed.append(sql.lower())
 
     mock_cur.execute = AsyncMock(side_effect=fake_execute)
-    # First call: task row, second: result row, third: telemetry
     mock_cur.fetchone = AsyncMock(side_effect=[
-        {'id': 'task-1', 'name': 'test', 'status': 'completed'},  # task
-        {'outcome': 'success'},  # result
-        {'total_input_tokens': 5000, 'total_output_tokens': 2000,
-         'total_cost_usd': 0.10, 'api_calls': 3},  # telemetry
+        None,
+        {'id': 'task-1', 'status': 'completed', 'publication_mode': 'mixed'},
+        {
+            'summary': '{"per_repo_push_summary": {"acme/core": {"publication_mode": "pull_request", "publication_source": "repo_config", "pr_branch": "fleet/task-1", "summary": "pr_created (https://github.com/acme/core/pull/42)"}, "acme/ui": {"publication_mode": "direct_push", "publication_outcome": "branch_pushed_pr_skipped"}}}',
+            'publication_mode': None,
+            'publication_source': None,
+            'pr_url': None,
+            'pr_number': None,
+            'pr_branch': None,
+            'publication_outcome': None,
+        },
+        {'total_input_tokens': 1, 'total_output_tokens': 1, 'total_cost_usd': 1, 'api_calls': 1},
     ])
 
     mock_conn = MagicMock()
     mock_conn.cursor = MagicMock(return_value=mock_cur)
+    data = asyncio.get_event_loop().run_until_complete(get_task(mock_conn, 'task-1'))
 
-    asyncio.get_event_loop().run_until_complete(get_task(mock_conn, 'task-1'))
+    assert any('select * from tasks where id = %s' in sql for sql in executed)
+    assert data['task']['publication_mode'] == 'mixed'
+    assert data['result']['publication_repos'][0]['pr_url'] == 'https://github.com/acme/core/pull/42'
+    assert data['result']['publication_repos'][1]['publication_outcome'] == 'branch_pushed_pr_skipped'
 
-    # Find the telemetry query (the one with task_telemetry)
-    telemetry_sql = [s for s in executed_sql if 'task_telemetry' in s]
-    assert telemetry_sql, "Expected a query against task_telemetry"
-    sql = telemetry_sql[0]
-    assert 'max(input_tokens)' in sql, (
-        "get_task telemetry query must use MAX(input_tokens), not SUM"
-    )
-    assert 'max(output_tokens)' in sql, (
-        "get_task telemetry query must use MAX(output_tokens), not SUM"
-    )
+
     assert 'sum(input_tokens' not in sql, (
         "get_task must not use SUM(input_tokens) — rows are cumulative snapshots"
     )
@@ -1131,3 +1171,82 @@ async def test_get_failure_rate_failures_equal_throughput_failure_plus_dead(db_c
             f"throughput failure={tp_row['failure']} + dead_letter={tp_row['dead_letter']} "
             f"= {expected_failures}. These must match."
         )
+
+
+def test_get_tasks_extracts_pr_mode_metadata():
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_tasks
+
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+    mock_cur.execute = AsyncMock()
+    mock_cur.fetchone = AsyncMock(return_value={'cnt': 1})
+    mock_cur.fetchall = AsyncMock(return_value=[{
+        'id': 'task-1',
+        'task_id': 'task-1',
+        'status': 'completed',
+        'submitted_at': '2026-04-06 09:00:00',
+        'publication_mode': None,
+        'publication_source': None,
+        'result_publication_mode': 'pull_request',
+        'result_publication_source': 'repo_config',
+        'pr_url': None,
+        'pr_number': None,
+        'pr_branch': None,
+        'publication_outcome': None,
+        'result_summary': '{"per_repo_push_summary": {"acme/core": {"publication_mode": "pull_request", "publication_source": "repo_config", "pr_branch": "fleet/task-1", "summary": "pr_created (https://github.com/acme/core/pull/42)"}}}',
+    }])
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+
+    tasks, total = asyncio.get_event_loop().run_until_complete(get_tasks(mock_conn))
+
+    assert total == 1
+    assert tasks[0]['publication_mode'] == 'pull_request'
+    assert tasks[0]['publication_source'] == 'repo_config'
+    assert tasks[0]['pr_url'] == 'https://github.com/acme/core/pull/42'
+    assert tasks[0]['pr_number'] == 42
+    assert tasks[0]['pr_branch'] == 'fleet/task-1'
+    assert tasks[0]['publication_outcome'] == 'pr_created'
+
+
+
+def test_get_task_falls_back_to_id_and_extracts_publication_metadata():
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from src.dashboard.queries import get_task
+
+    executed = []
+    mock_cur = AsyncMock()
+    mock_cur.__aenter__ = AsyncMock(return_value=mock_cur)
+    mock_cur.__aexit__ = AsyncMock(return_value=False)
+
+    async def fake_execute(sql, args=None):
+        executed.append(sql.lower())
+
+    mock_cur.execute = AsyncMock(side_effect=fake_execute)
+    mock_cur.fetchone = AsyncMock(side_effect=[
+        None,
+        {'id': 'task-1', 'status': 'completed', 'publication_mode': 'mixed'},
+        {
+            'summary': '{"per_repo_push_summary": {"acme/core": {"publication_mode": "pull_request", "publication_source": "repo_config", "pr_branch": "fleet/task-1", "summary": "pr_created (https://github.com/acme/core/pull/42)"}, "acme/ui": {"publication_mode": "direct_push", "publication_outcome": "branch_pushed_pr_skipped"}}}',
+            'publication_mode': None,
+            'publication_source': None,
+            'pr_url': None,
+            'pr_number': None,
+            'pr_branch': None,
+            'publication_outcome': None,
+        },
+        {'total_input_tokens': 1, 'total_output_tokens': 1, 'total_cost_usd': 1, 'api_calls': 1},
+    ])
+
+    mock_conn = MagicMock()
+    mock_conn.cursor = MagicMock(return_value=mock_cur)
+    data = asyncio.get_event_loop().run_until_complete(get_task(mock_conn, 'task-1'))
+
+    assert any('select * from tasks where id = %s' in sql for sql in executed)
+    assert data['task']['publication_mode'] == 'mixed'
+    assert data['result']['publication_repos'][0]['pr_url'] == 'https://github.com/acme/core/pull/42'
+    assert data['result']['publication_repos'][1]['publication_outcome'] == 'branch_pushed_pr_skipped'

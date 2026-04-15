@@ -1,6 +1,138 @@
 """SQL queries for the Horde Fleet Dashboard."""
 
+import json
+import re
+
 import aiomysql
+
+
+_PR_CREATED_URL_RE = re.compile(r"pr_created\s*\((https?://[^)\s]+)\)", re.IGNORECASE)
+_PR_NUMBER_RE = re.compile(r"/pull/(\d+)(?:$|[?#])")
+
+
+def _safe_json_loads(value):
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _extract_publication_metadata(task_row: dict, result_row: dict | None) -> dict:
+    task_row = task_row or {}
+    result_row = result_row or {}
+
+    mode = result_row.get("publication_mode") or task_row.get("publication_mode")
+    source = result_row.get("publication_source") or task_row.get("publication_source")
+    outcome = result_row.get("publication_outcome")
+    pr_url = result_row.get("pr_url")
+    pr_number = result_row.get("pr_number")
+    pr_branch = result_row.get("pr_branch")
+    per_repo = []
+
+    summary_payload = _safe_json_loads(result_row.get("summary"))
+    per_repo_candidates = []
+    if isinstance(summary_payload, dict):
+        per_repo_candidates.extend(
+            [
+                summary_payload.get("per_repo_push_summary"),
+                summary_payload.get("publication"),
+                summary_payload.get("publication_summary"),
+                summary_payload.get("push_summary"),
+                summary_payload.get("repos"),
+            ]
+        )
+
+    def _normalise_repo_entry(repo_key, entry):
+        nonlocal mode, source, outcome, pr_url, pr_number, pr_branch
+        if not isinstance(entry, dict):
+            return None
+
+        repo_url = entry.get("pr_url")
+        repo_outcome = entry.get("publication_outcome") or entry.get("outcome") or entry.get("status")
+        repo_branch = entry.get("pr_branch") or entry.get("branch")
+        repo_number = entry.get("pr_number")
+        repo_mode = entry.get("publication_mode") or entry.get("mode")
+        repo_source = entry.get("publication_source") or entry.get("source")
+        raw_summary = entry.get("summary") or entry.get("result") or entry.get("message")
+
+        if isinstance(raw_summary, str):
+            match = _PR_CREATED_URL_RE.search(raw_summary)
+            if match and not repo_url:
+                repo_url = match.group(1)
+            if raw_summary.startswith(("pr_created", "pr_create_failed", "branch_pushed_pr_skipped")) and not repo_outcome:
+                repo_outcome = raw_summary.split(" ", 1)[0]
+
+        if repo_url and not repo_number:
+            number_match = _PR_NUMBER_RE.search(repo_url)
+            if number_match:
+                repo_number = int(number_match.group(1))
+
+        if repo_mode and not mode:
+            mode = repo_mode
+        if repo_source and not source:
+            source = repo_source
+        if repo_outcome and not outcome:
+            outcome = repo_outcome
+        if repo_url and not pr_url:
+            pr_url = repo_url
+        if repo_number and not pr_number:
+            pr_number = repo_number
+        if repo_branch and not pr_branch:
+            pr_branch = repo_branch
+
+        return {
+            "repo_slug": entry.get("repo_slug") or entry.get("repo") or repo_key,
+            "publication_mode": repo_mode or mode,
+            "publication_source": repo_source or source,
+            "publication_outcome": repo_outcome,
+            "pr_url": repo_url,
+            "pr_number": repo_number,
+            "pr_branch": repo_branch,
+            "summary": raw_summary,
+        }
+
+    for candidate in per_repo_candidates:
+        if isinstance(candidate, dict):
+            for repo_key, entry in candidate.items():
+                repo_entry = _normalise_repo_entry(repo_key, entry)
+                if repo_entry:
+                    per_repo.append(repo_entry)
+        elif isinstance(candidate, list):
+            for idx, entry in enumerate(candidate):
+                repo_entry = _normalise_repo_entry(str(idx), entry)
+                if repo_entry:
+                    per_repo.append(repo_entry)
+
+    if pr_url and not pr_number:
+        number_match = _PR_NUMBER_RE.search(pr_url)
+        if number_match:
+            pr_number = int(number_match.group(1))
+
+    if not outcome:
+        if pr_url:
+            outcome = "pr_created"
+        elif mode == "direct_push":
+            outcome = "success"
+
+    if not mode:
+        modes = {entry.get("publication_mode") for entry in per_repo if entry.get("publication_mode")}
+        if len(modes) > 1:
+            mode = "mixed"
+        elif len(modes) == 1:
+            mode = next(iter(modes))
+
+    return {
+        "publication_mode": mode,
+        "publication_source": source,
+        "publication_outcome": outcome,
+        "pr_url": pr_url,
+        "pr_number": pr_number,
+        "pr_branch": pr_branch,
+        "publication_repos": per_repo,
+        "has_pr": bool(pr_url),
+    }
 
 
 async def get_queue_counts(conn) -> dict[str, int]:
@@ -354,11 +486,19 @@ async def get_task(conn, task_id: str) -> dict | None:
         )
         task_row = await cur.fetchone()
         if task_row is None:
+            await cur.execute(
+                "SELECT * FROM tasks WHERE id = %s",
+                (task_id,),
+            )
+            task_row = await cur.fetchone()
+        if task_row is None:
             return None
+
+        lookup_task_id = task_row.get("task_id") or task_row.get("id")
 
         await cur.execute(
             "SELECT * FROM task_results WHERE task_id = %s",
-            (task_id,),
+            (lookup_task_id,),
         )
         result_row = await cur.fetchone()
 
@@ -372,13 +512,16 @@ async def get_task(conn, task_id: str) -> dict | None:
             FROM task_telemetry
             WHERE task_id = %s
             """,
-            (task_id,),
+            (lookup_task_id,),
         )
         telemetry_row = await cur.fetchone()
 
+    task = dict(task_row)
+    result = dict(result_row) if result_row else None
+    publication = _extract_publication_metadata(task, result)
     return {
-        "task": dict(task_row),
-        "result": dict(result_row) if result_row else None,
+        "task": {**task, **publication},
+        "result": {**result, **publication} if result else publication,
         "telemetry": dict(telemetry_row) if telemetry_row else None,
     }
 
@@ -419,7 +562,23 @@ async def get_tasks(
             )
         rows = await cur.fetchall()
 
-    return [dict(row) for row in rows], total
+    tasks = []
+    for row in rows:
+        task = dict(row)
+        result_like = {
+            "publication_mode": task.get("result_publication_mode") or task.get("publication_mode"),
+            "publication_source": task.get("result_publication_source") or task.get("publication_source"),
+            "pr_url": task.get("pr_url"),
+            "pr_number": task.get("pr_number"),
+            "pr_branch": task.get("pr_branch"),
+            "publication_outcome": task.get("publication_outcome"),
+            "summary": task.get("result_summary") or task.get("summary"),
+        }
+        publication = _extract_publication_metadata(task, result_like)
+        task.update(publication)
+        tasks.append(task)
+
+    return tasks, total
 
 
 async def get_node_metrics_latest(conn) -> list[dict]:

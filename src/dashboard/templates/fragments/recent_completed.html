@@ -10,6 +10,7 @@
         <th>Duration</th>
         <th>Completed</th>
         <th>Commits</th>
+        <th>Publication</th>
         <th>Repos</th>
       </tr>
     </thead>
@@ -24,7 +25,45 @@
         <td class="text-muted">{{ task.completed_at or "—" }}</td>
         <td class="mono">{{ task.commit_hashes or "—" }}</td>
         <td>
-          {% if task.repo_commits %}
+          {% set mode = task.publication_mode if task.publication_mode is defined else None %}
+          {% if mode == 'pull_request' %}
+          <span class="badge badge-yellow">PR</span>
+          <span>Pull Request</span>
+          {% elif mode == 'mixed' %}
+          <span class="badge badge-orange">Mixed</span>
+          {% elif mode == 'direct_push' %}
+          <span class="badge badge-green">Direct Push</span>
+          {% else %}
+          <span class="text-muted">—</span>
+          {% endif %}
+          {% if task.pr_url is defined and task.pr_url %}
+          <div><a href="{{ task.pr_url }}" target="_blank" rel="noopener">PR{% if task.pr_number %} #{{ task.pr_number }}{% endif %}</a></div>
+          {% endif %}
+        </td>
+        <td>
+          {% if task.publication_repos is defined and task.publication_repos %}
+            {% for repo in task.publication_repos %}
+            <div>
+              <span class="mono">{{ (repo.repo_slug or 'repo').split('/')[-1] }}</span>
+              {% if repo.publication_mode == 'pull_request' %}
+              <span class="badge badge-yellow">PR</span>
+              {% elif repo.publication_mode == 'direct_push' %}
+              <span class="badge badge-green">Direct</span>
+              {% elif repo.publication_mode == 'mixed' %}
+              <span class="badge badge-orange">Mixed</span>
+              {% endif %}
+              {% if repo.pr_url %}
+              <a href="{{ repo.pr_url }}" target="_blank" rel="noopener">#{{ repo.pr_number or 'PR' }}</a>
+              {% endif %}
+              {% if repo.pr_branch %}
+              <span class="mono text-muted">{{ repo.pr_branch }}</span>
+              {% endif %}
+              {% if repo.publication_outcome %}
+              <span class="text-muted">{{ repo.publication_outcome }}</span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% elif task.repo_commits %}
             {% for rc in task.repo_commits %}
             <div>
               <a href="https://github.com/{{ rc.repo_slug }}/commit/{{ rc.commit_sha }}" target="_blank" class="mono">{{ rc.repo_slug.split('/')[-1] }}</a>

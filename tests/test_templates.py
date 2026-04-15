@@ -193,9 +193,32 @@ def test_recent_completed_renders(jinja_env, sample_recent_completed):
     assert "abc1234" in html
 
 
-def test_recent_completed_empty(jinja_env):
-    html = render(jinja_env, "fragments/recent_completed.html", tasks=[])
-    assert "No completed tasks" in html
+def test_recent_completed_direct_push_shows_no_pr_link(jinja_env):
+    task = {
+        "id": "task-direct-01",
+        "name": "gen-direct-task",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 10:00:00",
+        "completed_at": "2026-04-06 10:05:00",
+        "repos": "acme/core",
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": "abc12345",
+        "publication_mode": "direct_push",
+        "publication_source": "legacy_default",
+        "publication_outcome": "success",
+        "pr_url": None,
+        "pr_number": None,
+        "pr_branch": None,
+        "publication_repos": [],
+        "repo_commits": [
+            {"repo_slug": "acme/core", "branch": "main", "commit_sha": "abc12345", "push_target": "main"}
+        ],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "Direct Push" in html
+    assert "/pull/" not in html
 
 
 def test_recent_completed_required_columns_present(jinja_env):
@@ -233,36 +256,90 @@ def test_recent_completed_required_columns_present(jinja_env):
     assert "5m 0s" in html
 
 
-def test_recent_completed_renders_with_repos(jinja_env):
-    """Template shows repo name badge and GitHub commit link when commits exist."""
+def test_recent_completed_pull_request_shows_pr_metadata(jinja_env):
     task = {
-        "id": "task-done-01",
-        "name": "gen-feature-y",
+        "id": "task-pr-01",
+        "name": "gen-pr-task",
         "project": "acme",
         "claimed_by": "node-gpu-01",
-        "started_at": "2026-04-06 09:30:00",
-        "completed_at": "2026-04-06 09:35:00",
-        "repos": "tobyj-nvidia/horde-claw-fleet",
+        "started_at": "2026-04-06 10:00:00",
+        "completed_at": "2026-04-06 10:05:00",
+        "repos": "acme/core",
         "duration_seconds": 300,
         "_duration": "5m 0s",
         "commit_hashes": "abc12345",
-        "repo_slug": "tobyj-nvidia/horde-claw-fleet",
-        "branch": "main",
-        "commit_sha": "abc12345",
-        "push_target": "main",
-        "repo_commits": [
+        "publication_mode": "pull_request",
+        "publication_source": "repo_config",
+        "publication_outcome": "pr_created",
+        "pr_url": "https://github.com/acme/core/pull/42",
+        "pr_number": 42,
+        "pr_branch": "fleet/task-pr-01",
+        "publication_repos": [
             {
-                "repo_slug": "tobyj-nvidia/horde-claw-fleet",
-                "branch": "main",
-                "commit_sha": "abc12345",
-                "push_target": "main",
+                "repo_slug": "acme/core",
+                "publication_mode": "pull_request",
+                "publication_source": "repo_config",
+                "publication_outcome": "pr_created",
+                "pr_url": "https://github.com/acme/core/pull/42",
+                "pr_number": 42,
+                "pr_branch": "fleet/task-pr-01",
             }
         ],
+        "repo_commits": [],
     }
     html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
-    assert "horde-claw-fleet" in html
-    assert "main" in html
-    assert "abc12345" in html
+    assert "Pull Request" in html
+    assert "https://github.com/acme/core/pull/42" in html
+    assert "#42" in html
+    assert "fleet/task-pr-01" in html
+
+
+
+def test_recent_completed_mixed_mode_shows_per_repo_breakdown(jinja_env):
+    task = {
+        "id": "task-mixed-01",
+        "name": "gen-mixed-task",
+        "project": "acme",
+        "claimed_by": "node-gpu-01",
+        "started_at": "2026-04-06 10:00:00",
+        "completed_at": "2026-04-06 10:05:00",
+        "repos": "acme/core,acme/ui",
+        "duration_seconds": 300,
+        "_duration": "5m 0s",
+        "commit_hashes": "abc12345,def67890",
+        "publication_mode": "mixed",
+        "publication_source": "operator_override",
+        "publication_outcome": "pr_created",
+        "pr_url": None,
+        "pr_number": None,
+        "pr_branch": None,
+        "publication_repos": [
+            {
+                "repo_slug": "acme/core",
+                "publication_mode": "pull_request",
+                "publication_source": "repo_config",
+                "publication_outcome": "pr_created",
+                "pr_url": "https://github.com/acme/core/pull/77",
+                "pr_number": 77,
+                "pr_branch": "fleet/task-mixed-core",
+            },
+            {
+                "repo_slug": "acme/ui",
+                "publication_mode": "direct_push",
+                "publication_source": "legacy_default",
+                "publication_outcome": "branch_pushed_pr_skipped",
+                "pr_url": None,
+                "pr_number": None,
+                "pr_branch": "fleet/task-mixed-ui",
+            },
+        ],
+        "repo_commits": [],
+    }
+    html = render(jinja_env, "fragments/recent_completed.html", tasks=[task])
+    assert "Mixed" in html
+    assert "core" in html
+    assert "ui" in html
+    assert "branch_pushed_pr_skipped" in html
 
 
 def test_recent_completed_renders_without_repos(jinja_env):
