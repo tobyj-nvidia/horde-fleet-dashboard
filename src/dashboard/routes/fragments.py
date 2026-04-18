@@ -16,6 +16,7 @@ from dashboard.queries import (
     get_dead_letter,
     get_duration_percentiles,
     get_failure_rate,
+    get_latest_fleet_health,
     get_node_metrics_history,
     get_node_metrics_latest,
     get_node_utilization_history,
@@ -372,16 +373,28 @@ async def security_incident_detail(request: Request, invocation_id: str, conn=De
 
 @router.get("/fragments/fleet-health", response_class=HTMLResponse)
 async def fleet_health(request: Request):
-    import json as _json
     from datetime import datetime, timezone
-    health_path = Path("/home/horde/horde-claw-fleet/monitoring/fleet-health.json")
+    from pathlib import Path
+
+    from dashboard import db
+
     data = None
     staleness = "unknown"
     elapsed_str = "unknown"
-    if health_path.exists():
+
+    pool = await db.get_pool()
+    async with pool.acquire() as conn:
+        data = await get_latest_fleet_health(conn)
+
+    if data:
         try:
-            data = _json.loads(health_path.read_text())
-            run_at = datetime.fromisoformat(data["run_at"].replace("Z", "+00:00"))
+            run_at_raw = data["run_at"]
+            if isinstance(run_at_raw, str):
+                run_at = datetime.fromisoformat(run_at_raw.replace("Z", "+00:00"))
+            else:
+                run_at = run_at_raw
+                if run_at.tzinfo is None:
+                    run_at = run_at.replace(tzinfo=timezone.utc)
             age_seconds = (datetime.now(timezone.utc) - run_at).total_seconds()
             staleness = "fresh" if age_seconds < 1500 else ("warn" if age_seconds < 3600 else "stale")
             if age_seconds < 60:

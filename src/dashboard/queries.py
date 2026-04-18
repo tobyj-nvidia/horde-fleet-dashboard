@@ -985,3 +985,19 @@ async def retry_task(conn, task_id: str) -> bool:
         affected = cur.rowcount
     await conn.commit()
     return affected > 0
+
+
+async def get_latest_fleet_health(conn) -> dict | None:
+    """Return the most recent fleet_health_reports row, or None."""
+    try:
+        async with conn.cursor(aiomysql.DictCursor) as cur:
+            await cur.execute(
+                "SELECT run_at, status, status_emoji, summary, findings, finding_counts "
+                "FROM fleet_health_reports ORDER BY run_at DESC LIMIT 1"
+            )
+            row = await cur.fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("fleet_health query failed: %s", e)
+        return None

@@ -125,6 +125,22 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
         ],
         None,
     ),
+    'from fleet_health_reports': ([{
+        'run_at': '2026-04-18 19:22:00',
+        'status': 'HEALTHY',
+        'status_emoji': '💚',
+        'summary': 'All checks clean.',
+        'findings': '[]',
+        'finding_counts': '{"critical":0,"warning":0,"info":0}',
+    }], None),
+    'from nodes n': (
+        [
+            {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0, 'no_data': 0},
+            {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0, 'no_data': 0},
+            {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0, 'no_data': 0},
+        ],
+        None,
+    ),
     'from nodes': ([{
         'node_id': 'node-gpu-01',
         'status': 'active',
@@ -226,6 +242,14 @@ _MOCK_QUERY_MAP: dict[str, tuple[list[dict], dict | None]] = {
             {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0},
             {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0},
             {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0},
+        ],
+        None,
+    ),
+    'from nodes n': (
+        [
+            {'worker_node_id': 'node-gpu-01', 'total': 500, 'blocks': 25, 'highs': 10, 'criticals': 3, 'block_rate_pct': 5.0, 'no_data': 0},
+            {'worker_node_id': 'node-cpu-01', 'total': 300, 'blocks': 3, 'highs': 2, 'criticals': 0, 'block_rate_pct': 1.0, 'no_data': 0},
+            {'worker_node_id': 'node-gpu-02', 'total': 200, 'blocks': 30, 'highs': 15, 'criticals': 5, 'block_rate_pct': 15.0, 'no_data': 0},
         ],
         None,
     ),
