@@ -368,3 +368,30 @@ async def security_incident_detail(request: Request, invocation_id: str, conn=De
     if incident is None:
         return HTMLResponse('Incident not found', status_code=404)
     return templates.TemplateResponse('security_incident.html', {'request': request, **incident})
+
+
+@router.get("/fragments/fleet-health", response_class=HTMLResponse)
+async def fleet_health(request: Request):
+    import json as _json
+    from datetime import datetime, timezone
+    health_path = Path("/home/horde/horde-claw-fleet/monitoring/fleet-health.json")
+    data = None
+    staleness = "unknown"
+    elapsed_str = "unknown"
+    if health_path.exists():
+        try:
+            data = _json.loads(health_path.read_text())
+            run_at = datetime.fromisoformat(data["run_at"].replace("Z", "+00:00"))
+            age_seconds = (datetime.now(timezone.utc) - run_at).total_seconds()
+            staleness = "fresh" if age_seconds < 1500 else ("warn" if age_seconds < 3600 else "stale")
+            if age_seconds < 60:
+                elapsed_str = "just now"
+            elif age_seconds < 3600:
+                elapsed_str = f"{int(age_seconds // 60)} min ago"
+            else:
+                elapsed_str = f"{int(age_seconds // 3600)}h {int((age_seconds % 3600) // 60)}m ago"
+        except Exception:
+            pass
+    return templates.TemplateResponse("fragments/fleet_health.html", {
+        "request": request, "data": data, "staleness": staleness, "elapsed_str": elapsed_str,
+    })

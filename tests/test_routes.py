@@ -159,3 +159,9 @@ async def test_fragment_tool_heatmap(client):
 async def test_fragment_worker_security_health(client):
     html = await _get_ok(client, "/fragments/worker-security-health")
     assert "worker-security-health-panel" in html
+
+
+@pytest.mark.asyncio
+async def test_fragment_fleet_health(client):
+    html = await _get_ok(client, "/fragments/fleet-health")
+    assert "fleet-health-panel" in html

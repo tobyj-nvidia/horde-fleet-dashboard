@@ -29,6 +29,14 @@
 </div>
 
 <div class="grid-four-col">
+    <div class="card metric-panel">
+        <div hx-get="/fragments/fleet-health"
+             hx-trigger="load, every 60s"
+             hx-swap="innerHTML">
+            Loading fleet health...
+        </div>
+    </div>
+
     <div class="card metric-panel" id="throughput-panel">
         <h2>Throughput</h2>
         <div hx-get="/fragments/throughput" hx-trigger="every 60s" hx-swap="outerHTML">

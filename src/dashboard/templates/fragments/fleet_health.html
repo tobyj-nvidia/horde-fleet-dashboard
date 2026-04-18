@@ -1,0 +1,19 @@
+<div id="fleet-health-panel">
+  <h2>Fleet Health</h2>
+  {% if data %}
+    <div class="fleet-health-status status-{{ data.status | lower }}">
+      {{ data.status_emoji }} {{ data.status }}
+    </div>
+    <p class="fleet-health-summary">{{ data.summary }}</p>
+    {% if staleness == 'fresh' %}
+      <p class="fleet-health-age age-fresh">Updated {{ elapsed_str }}</p>
+    {% elif staleness == 'warn' %}
+      <p class="fleet-health-age age-warn">⚠️ Last visit {{ elapsed_str }} (missed a cycle)</p>
+    {% else %}
+      <p class="fleet-health-age age-stale">🚨 Last visit {{ elapsed_str }} — daemon may be down</p>
+    {% endif %}
+  {% else %}
+    <div class="fleet-health-status status-unknown">No data</div>
+    <p class="fleet-health-summary">Fleet doctor has not run yet.</p>
+  {% endif %}
+</div>
