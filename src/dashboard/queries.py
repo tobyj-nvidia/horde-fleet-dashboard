@@ -2,6 +2,7 @@
 
 import json
 import re
+from urllib.parse import urlparse
 
 import aiomysql
 
@@ -17,6 +18,26 @@ def _safe_json_loads(value):
         return json.loads(value)
     except (TypeError, ValueError, json.JSONDecodeError):
         return None
+
+
+def _full_slug_from_repo_url(url: str, bare_name: str) -> str | None:
+    if not url or not bare_name:
+        return None
+
+    parsed = urlparse(url)
+    path = parsed.path.strip("/")
+    if not path:
+        return None
+
+    parts = path.split("/")
+    if len(parts) < 2:
+        return None
+
+    org = parts[0]
+    if not org:
+        return None
+
+    return f"{org}/{bare_name}"
 
 
 def _extract_publication_metadata(task_row: dict, result_row: dict | None) -> dict:
@@ -709,6 +730,21 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
     result = []
     for row in rows:
         d = dict(row)
+        repos_payload = d.get("repos")
+        if isinstance(repos_payload, str):
+            repos_payload = _safe_json_loads(repos_payload)
+        if not isinstance(repos_payload, list):
+            repos_payload = []
+
+        bare_name_to_full_slug = {}
+        for repo in repos_payload:
+            if not isinstance(repo, dict):
+                continue
+            bare_name = repo.get("slug")
+            full_slug = _full_slug_from_repo_url(repo.get("url"), bare_name)
+            if bare_name and full_slug:
+                bare_name_to_full_slug[bare_name] = full_slug
+
         if d["repo_slug"]:
             slugs = d["repo_slug"].split("|")
             branches = d["branch"].split("|")
@@ -717,6 +753,7 @@ async def get_recent_completed(conn, limit: int = 10) -> list[dict]:
             seen = set()
             unique_commits = []
             for slug, branch, sha, raw_target in zip(slugs, branches, shas, raw_targets):
+                slug = slug if "/" in slug else bare_name_to_full_slug.get(slug, slug)
                 key = (slug, branch)
                 if key not in seen:
                     seen.add(key)
